@@ -1,24 +1,32 @@
 'use client';
-import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import GroupNav from '@/components/GroupNav';
 import FeedbackButton from '@/components/FeedbackButton';
 import type { Expense, Group } from '@/types';
+import { queryKeys } from '@/lib/queryKeys';
 
 export default function GroupDashboardPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [group, setGroup] = useState<Group | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    Promise.all([
-      fetch(`/api/groups/${id}`).then(r => r.json()),
-      fetch(`/api/groups/${id}/expenses`).then(r => r.json()),
-    ]).then(([g, e]) => { setGroup(g); setExpenses(e); setLoading(false); });
-  }, [id]);
+  const { data: group = null, isLoading: groupLoading } = useQuery({
+    queryKey: queryKeys.group(id),
+    queryFn: () => fetch(`/api/groups/${id}`).then(r => r.json()) as Promise<Group>,
+  });
 
+  const { data: expenses = [], isLoading: expensesLoading } = useQuery({
+    queryKey: queryKeys.expenses(id),
+    queryFn: () => fetch(`/api/groups/${id}/expenses`).then(r => r.json()) as Promise<Expense[]>,
+  });
+
+  const logout = useMutation({
+    mutationFn: () => fetch('/api/auth', { method: 'DELETE' }),
+    onSuccess: () => router.push('/login'),
+  });
+
+  const loading = groupLoading || expensesLoading;
   const today = new Date().toISOString().split('T')[0];
   const periodStart = group?.period_start ?? '';
 
@@ -33,19 +41,32 @@ export default function GroupDashboardPage() {
   const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
   const recent = expenses.slice(0, 5);
 
-  const handleLogout = async () => {
-    await fetch('/api/auth', { method: 'DELETE' });
-    router.push('/login');
+  const handleReload = () => {
+    void Promise.all([
+      queryClient.refetchQueries({ queryKey: queryKeys.group(id) }),
+      queryClient.refetchQueries({ queryKey: queryKeys.expenses(id) }),
+    ]);
   };
 
   return (
     <div className="min-h-screen p-4 max-w-lg mx-auto">
       <div className="flex justify-between items-center mb-1">
-        <h1 className="text-xl font-bold">{group?.name ?? 'Dashboard'}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-bold">{group?.name ?? 'Dashboard'}</h1>
+          <button
+            type="button"
+            onClick={handleReload}
+            className="text-xs p-1.5 rounded border border-gray-600 text-gray-400 hover:text-gray-200 hover:border-gray-500"
+            title="Refresh"
+            aria-label="Refresh"
+          >
+            ↻
+          </button>
+        </div>
         <div className="flex gap-3">
           <button onClick={() => router.push('/groups')} className="text-xs text-gray-400">Groups</button>
           <FeedbackButton />
-          <button onClick={handleLogout} className="text-xs text-gray-400">Logout</button>
+          <button onClick={() => logout.mutate()} disabled={logout.isPending} className="text-xs text-gray-400">Logout</button>
         </div>
       </div>
       {periodStart && <p className="text-xs text-gray-400 mb-4">Period from {periodStart}</p>}

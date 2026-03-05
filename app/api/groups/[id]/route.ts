@@ -23,7 +23,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!await isAuthed()) return unauth();
   try {
     const { id } = await params;
-    const { action } = await req.json() as { action: string };
+    const body = await req.json() as { action: string; name?: string };
+    const { action, name } = body;
     const supabase = createAdminClient();
 
     if (action === 'start_period') {
@@ -54,9 +55,37 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json(data);
     }
 
+    if (action === 'rename') {
+      if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
+      const { data, error } = await supabase
+        .from('groups')
+        .update({ name: name.trim() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) { await log('ERROR', 'rename group failed', { id, error: error.message }); return NextResponse.json({ error: error.message }, { status: 500 }); }
+      await log('INFO', 'Group renamed', { id, name: data.name });
+      return NextResponse.json(data);
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (e) {
     await log('ERROR', 'group PATCH crashed', { error: String(e) });
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!await isAuthed()) return unauth();
+  try {
+    const { id } = await params;
+    const supabase = createAdminClient();
+    const { error } = await supabase.from('groups').delete().eq('id', id);
+    if (error) { await log('ERROR', 'group DELETE failed', { id, error: error.message }); return NextResponse.json({ error: error.message }, { status: 500 }); }
+    await log('INFO', 'Group deleted', { id });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    await log('ERROR', 'group DELETE crashed', { error: String(e) });
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

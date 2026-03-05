@@ -1,45 +1,74 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import GroupNav from '@/components/GroupNav';
 import type { Category } from '@/types';
+import { queryKeys } from '@/lib/queryKeys';
 
 const DEFAULTS = ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
 
 export default function GroupCategoriesPage() {
   const { id } = useParams<{ id: string }>();
-  const [categories, setCategories] = useState<Category[]>([]);
+  const queryClient = useQueryClient();
   const [newName, setNewName] = useState('');
-  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetch(`/api/groups/${id}/categories`).then(r => r.json()).then(setCategories);
-  }, [id]);
+  const { data: categories = [] } = useQuery({
+    queryKey: queryKeys.categories(id),
+    queryFn: () => fetch(`/api/groups/${id}/categories`).then(r => r.json()) as Promise<Category[]>,
+  });
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const createCategory = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await fetch(`/api/groups/${id}/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories(id) });
+      setNewName('');
+    },
+  });
+
+  const deleteCategory = useMutation({
+    mutationFn: (cid: string) => fetch(`/api/groups/${id}/categories/${cid}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories(id) });
+    },
+  });
+
+  const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
-    setSaving(true);
-    const res = await fetch(`/api/groups/${id}/categories`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName.trim() }),
-    });
-    const created = await res.json();
-    setCategories(c => [...c, created]);
-    setNewName('');
-    setSaving(false);
+    createCategory.mutate(newName.trim());
   };
 
-  const handleDelete = async (cid: string) => {
+  const handleDelete = (cid: string) => {
     if (!confirm('Delete category?')) return;
-    await fetch(`/api/groups/${id}/categories/${cid}`, { method: 'DELETE' });
-    setCategories(c => c.filter(x => x.id !== cid));
+    deleteCategory.mutate(cid);
+  };
+
+  const handleReload = () => {
+    void queryClient.refetchQueries({ queryKey: queryKeys.categories(id) });
   };
 
   return (
     <div className="min-h-screen p-4 max-w-sm mx-auto">
-      <h1 className="text-xl font-bold mb-6">Categories</h1>
+      <div className="flex items-center gap-2 mb-6">
+        <h1 className="text-xl font-bold">Categories</h1>
+        <button
+          type="button"
+          onClick={handleReload}
+          className="text-xs p-1.5 rounded border border-gray-600 text-gray-400 hover:text-gray-200 hover:border-gray-500"
+          title="Refresh"
+          aria-label="Refresh"
+        >
+          ↻
+        </button>
+      </div>
 
       <div className="mb-6">
         <h2 className="text-xs text-gray-500 uppercase tracking-wide mb-2">Defaults</h2>
@@ -67,7 +96,7 @@ export default function GroupCategoriesPage() {
           placeholder="New category name"
           className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
-        <button type="submit" disabled={saving || !newName.trim()}
+        <button type="submit" disabled={createCategory.isPending || !newName.trim()}
           className="bg-white text-gray-900 px-3 py-2 rounded text-sm disabled:opacity-40">
           Add
         </button>

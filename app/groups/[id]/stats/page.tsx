@@ -1,8 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import GroupNav from '@/components/GroupNav';
 import type { Expense, Group } from '@/types';
+import { queryKeys } from '@/lib/queryKeys';
 
 const BAR_COLORS = [
   '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6', '#f97316', '#84cc16',
@@ -95,18 +97,57 @@ function DailyBars({ expenses, from }: { expenses: Expense[]; from: string }) {
 
 export default function GroupStatsPage() {
   const { id } = useParams<{ id: string }>();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [group, setGroup] = useState<Group | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [msg, setMsg] = useState('');
 
-  const reload = () =>
-    Promise.all([
-      fetch(`/api/groups/${id}`).then(r => r.json()),
-      fetch(`/api/groups/${id}/expenses`).then(r => r.json()),
-    ]).then(([g, e]) => { setGroup(g); setExpenses(e); setLoading(false); });
+  const { data: group = null, isLoading: groupLoading } = useQuery({
+    queryKey: queryKeys.group(id),
+    queryFn: () => fetch(`/api/groups/${id}`).then(r => r.json()) as Promise<Group>,
+  });
 
-  useEffect(() => { reload(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { data: expenses = [], isLoading: expensesLoading } = useQuery({
+    queryKey: queryKeys.expenses(id),
+    queryFn: () => fetch(`/api/groups/${id}/expenses`).then(r => r.json()) as Promise<Expense[]>,
+  });
+
+  const loading = groupLoading || expensesLoading;
+
+  const startPeriod = useMutation({
+    mutationFn: () =>
+      fetch(`/api/groups/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start_period' }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.group(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
+      setMsg('New period started!');
+      setTimeout(() => setMsg(''), 3000);
+    },
+  });
+
+  const undoPeriod = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/groups/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'undo_period' }),
+      });
+      if (!res.ok) throw new Error('No previous period');
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.group(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
+      setMsg('Period restored!');
+      setTimeout(() => setMsg(''), 3000);
+    },
+    onError: () => {
+      setMsg('No previous period to restore');
+      setTimeout(() => setMsg(''), 3000);
+    },
+  });
 
   const today = new Date().toISOString().split('T')[0];
   const periodStart = group?.period_start ?? today;
@@ -122,7 +163,7 @@ export default function GroupStatsPage() {
   const curSorted = Object.entries(curCats).sort((a, b) => b[1] - a[1]);
   const curMax = curSorted[0]?.[1] ?? 1;
 
-  // Previous period (from prev_period_start or beginning of time, up to period_start)
+  // Previous period
   const prevExpenses = expenses.filter(e => {
     if (e.date >= periodStart) return false;
     if (prevStart && e.date < prevStart) return false;
@@ -136,45 +177,40 @@ export default function GroupStatsPage() {
   const prevSorted = Object.entries(prevCats).sort((a, b) => b[1] - a[1]);
   const prevMax = prevSorted[0]?.[1] ?? 1;
 
-  const flash = (text: string) => { setMsg(text); setTimeout(() => setMsg(''), 3000); };
+  const handleUndo = () => undoPeriod.mutate();
 
-  const startNewPeriod = async () => {
-    if (!confirm('Start a new period from today? You can undo this.')) return;
-    await fetch(`/api/groups/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'start_period' }),
-    });
-    await reload();
-    flash('New period started!');
-  };
-
-  const undoPeriod = async () => {
-    const res = await fetch(`/api/groups/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'undo_period' }),
-    });
-    if (!res.ok) { flash('No previous period to restore'); return; }
-    await reload();
-    flash('Period restored!');
+  const handleReload = () => {
+    void Promise.all([
+      queryClient.refetchQueries({ queryKey: queryKeys.group(id) }),
+      queryClient.refetchQueries({ queryKey: queryKeys.expenses(id) }),
+    ]);
   };
 
   if (loading) return <div className="p-4 text-sm text-gray-400">Loading...</div>;
 
   return (
     <div className="min-h-screen p-4 max-w-lg mx-auto">
-      <h1 className="text-xl font-bold mb-1">Stats</h1>
+      <div className="flex items-center gap-2 mb-1">
+        <h1 className="text-xl font-bold">Stats</h1>
+        <button
+          type="button"
+          onClick={handleReload}
+          className="text-xs p-1.5 rounded border border-gray-600 text-gray-400 hover:text-gray-200 hover:border-gray-500"
+          title="Refresh"
+          aria-label="Refresh"
+        >
+          ↻
+        </button>
+      </div>
       <p className="text-xs text-gray-400 mb-4">Current period from {periodStart}</p>
 
-      {/* Period control */}
       <div className="flex gap-2 mb-4">
-        <button onClick={startNewPeriod}
-          className="flex-1 bg-white text-gray-900 rounded py-2 text-sm font-medium">
+        <button onClick={() => startPeriod.mutate()} disabled={startPeriod.isPending}
+          className="flex-1 bg-white text-gray-900 rounded py-2 text-sm font-medium disabled:opacity-40">
           Start New Period
         </button>
         {prevStart && (
-          <button onClick={undoPeriod}
+          <button onClick={handleUndo} disabled={undoPeriod.isPending}
             className="px-4 py-2 border border-gray-700 rounded text-sm text-gray-400">
             Undo
           </button>
@@ -182,19 +218,16 @@ export default function GroupStatsPage() {
       </div>
       {msg && <p className="text-green-600 text-sm mb-4">{msg}</p>}
 
-      {/* Monthly chart */}
       <div className="mb-6">
         <h2 className="text-sm font-semibold mb-3">Monthly spending (last 6 months)</h2>
         <MonthlyBars expenses={expenses} />
       </div>
 
-      {/* Daily chart */}
       <div className="mb-6">
         <h2 className="text-sm font-semibold mb-3">Daily spending (current period)</h2>
         <DailyBars expenses={curExpenses} from={periodStart} />
       </div>
 
-      {/* Current period */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-sm font-semibold">Current period</h2>
@@ -211,7 +244,6 @@ export default function GroupStatsPage() {
         )}
       </div>
 
-      {/* Previous period */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-sm font-semibold">Previous period</h2>

@@ -1,9 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import VoiceInput from '@/components/VoiceInput';
 import GroupNav from '@/components/GroupNav';
-import type { ParsedExpense, Category } from '@/types';
+import type { ParsedExpense, Category, Group, Expense } from '@/types';
+import { queryKeys } from '@/lib/queryKeys';
 
 const DEFAULTS = ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
 const TODAY = () => new Date().toISOString().split('T')[0];
@@ -11,66 +13,96 @@ const TODAY = () => new Date().toISOString().split('T')[0];
 export default function GroupAddPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [form, setForm] = useState({ amount: '', category: 'Food', description: '', date: TODAY() });
-  const [parsing, setParsing] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [customCats, setCustomCats] = useState<Category[]>([]);
   const [saved, setSaved] = useState(false);
   const [voiceKey, setVoiceKey] = useState(0);
 
+  // Prefetch group, expenses, and categories in parallel so Expenses/Dashboard/Stats/Categories tabs load instantly
   useEffect(() => {
-    fetch(`/api/groups/${id}/categories`).then(r => r.json()).then(setCustomCats);
-  }, [id]);
+    if (!id) return;
+    void Promise.all([
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.group(id),
+        queryFn: () => fetch(`/api/groups/${id}`).then(r => r.json()) as Promise<Group>,
+      }),
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.expenses(id),
+        queryFn: () => fetch(`/api/groups/${id}/expenses`).then(r => r.json()) as Promise<Expense[]>,
+      }),
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.categories(id),
+        queryFn: () => fetch(`/api/groups/${id}/categories`).then(r => r.json()) as Promise<Category[]>,
+      }),
+    ]);
+  }, [id, queryClient]);
+
+  const { data: customCats = [] } = useQuery({
+    queryKey: queryKeys.categories(id),
+    queryFn: () => fetch(`/api/groups/${id}/categories`).then(r => r.json()) as Promise<Category[]>,
+  });
 
   const categories = [...DEFAULTS, ...customCats.map(c => c.name).filter(n => !DEFAULTS.includes(n))];
 
-  const handleTranscript = async (text: string) => {
-    setParsing(true);
-    setError('');
-    try {
+  const parseExpense = useMutation({
+    mutationFn: async (text: string) => {
       const res = await fetch('/api/parse-expense', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, categories }),
       });
       const parsed: ParsedExpense & { error?: string } = await res.json();
-      if (parsed.error) { setError(parsed.error); return; }
-      setForm(f => ({
-        amount: parsed.amount != null ? String(parsed.amount) : f.amount,
-        category: parsed.category ?? f.category,
-        description: parsed.description || f.description,
-        date: parsed.date ?? f.date,
-      }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to parse voice input');
-    } finally {
-      setParsing(false);
-    }
+      if (parsed.error) throw new Error(parsed.error);
+      return parsed;
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  const createExpense = useMutation({
+    mutationFn: async (payload: typeof form) => {
+      const res = await fetch(`/api/groups/${id}/expenses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.group(id) });
+      setSaved(true);
+      setForm(f => ({ amount: '', category: f.category, description: '', date: TODAY() }));
+      setVoiceKey(k => k + 1);
+      setTimeout(() => setSaved(false), 2000);
+    },
+    onError: () => setError('Failed to save expense'),
+  });
+
+  const handleTranscript = async (text: string) => {
+    setError('');
+    parseExpense.mutate(text, {
+      onSuccess: (parsed) => {
+        setForm(f => ({
+          amount: parsed.amount != null ? String(parsed.amount) : f.amount,
+          category: parsed.category ?? f.category,
+          description: parsed.description || f.description,
+          date: parsed.date ?? f.date,
+        }));
+      },
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.amount) return;
-    setSaving(true);
     setError('');
-    try {
-      const res = await fetch(`/api/groups/${id}/expenses`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) throw new Error('Save failed');
-      setSaved(true);
-      setForm(f => ({ amount: '', category: f.category, description: '', date: TODAY() }));
-      setVoiceKey(k => k + 1);
-      setTimeout(() => setSaved(false), 2000);
-    } catch {
-      setError('Failed to save expense');
-    } finally {
-      setSaving(false);
-    }
+    createExpense.mutate(form);
   };
+
+  const parsing = parseExpense.isPending;
+  const saving = createExpense.isPending;
 
   return (
     <div className="min-h-screen p-4 max-w-sm mx-auto">
