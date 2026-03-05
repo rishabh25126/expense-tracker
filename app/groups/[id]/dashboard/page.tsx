@@ -98,8 +98,8 @@ export default function GroupDashboardPage() {
         </>
       )}
 
-      <div className="h-14" />
-      <GroupNav groupId={id} />
+  <div className="h-14 mb-32" />
+        <GroupNav groupId={id} />
     </div>
   );
 }

@@ -131,7 +131,7 @@ export default function GroupExpensesPage() {
         </div>
       )}
 
-      <div className="h-14" />
+        <div className="h-14 mb-32" />
       <GroupNav groupId={id} />
     </div>
   );

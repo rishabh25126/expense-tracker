@@ -73,7 +73,7 @@ export default function GroupCategoriesPage() {
         </button>
       </form>
 
-      <div className="h-14" />
+        <div className="h-14 mb-32" />
       <GroupNav groupId={id} />
     </div>
   );
