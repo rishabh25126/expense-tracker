@@ -17,10 +17,10 @@ export default function GroupNav({ groupId }: Props) {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 border-t bg-white flex justify-around py-4 text-sm">
+    <nav className="fixed bottom-0 left-0 right-0 border-t border-gray-800 bg-gray-950 flex justify-around py-4 text-sm">
       {nav.map(({ label, path }) => (
         <button key={path} onClick={() => router.push(path)}
-          className={`px-2 py-1 min-w-[56px] ${pathname === path ? 'font-semibold text-black' : 'text-gray-400'}`}>
+          className={`px-2 py-1 min-w-[56px] ${pathname === path ? 'font-semibold text-white' : 'text-gray-500'}`}>
           {label}
         </button>
       ))}

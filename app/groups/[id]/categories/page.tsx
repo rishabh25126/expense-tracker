@@ -44,7 +44,7 @@ export default function GroupCategoriesPage() {
       <div className="mb-6">
         <h2 className="text-xs text-gray-500 uppercase tracking-wide mb-2">Defaults</h2>
         <div className="flex flex-wrap gap-2">
-          {DEFAULTS.map(d => <span key={d} className="text-sm border rounded px-2 py-1 bg-gray-50">{d}</span>)}
+          {DEFAULTS.map(d => <span key={d} className="text-sm border border-gray-700 bg-gray-800 rounded px-2 py-1 text-gray-300">{d}</span>)}
         </div>
       </div>
 
@@ -53,9 +53,9 @@ export default function GroupCategoriesPage() {
           <h2 className="text-xs text-gray-500 uppercase tracking-wide mb-2">Custom</h2>
           <div className="space-y-2">
             {categories.map(c => (
-              <div key={c.id} className="flex justify-between items-center border rounded px-3 py-2">
+              <div key={c.id} className="flex justify-between items-center border border-gray-700 bg-gray-900 rounded px-3 py-2">
                 <span className="text-sm">{c.name}</span>
-                <button onClick={() => handleDelete(c.id)} className="text-xs text-red-500">Delete</button>
+                <button onClick={() => handleDelete(c.id)} className="text-xs text-red-400">Delete</button>
               </div>
             ))}
           </div>
@@ -65,10 +65,10 @@ export default function GroupCategoriesPage() {
       <form onSubmit={handleAdd} className="flex gap-2">
         <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
           placeholder="New category name"
-          className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+          className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
         <button type="submit" disabled={saving || !newName.trim()}
-          className="bg-black text-white px-3 py-2 rounded text-sm disabled:opacity-40">
+          className="bg-white text-gray-900 px-3 py-2 rounded text-sm disabled:opacity-40">
           Add
         </button>
       </form>

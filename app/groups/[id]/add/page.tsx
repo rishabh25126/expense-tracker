@@ -92,14 +92,14 @@ export default function GroupAddPage() {
             type="number" step="0.01" value={form.amount}
             onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
             placeholder="0" required
-            className="w-full border rounded px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
         <div>
           <label className="text-xs text-gray-500 uppercase tracking-wide">Category</label>
           <select value={form.category}
             onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-            className="w-full border rounded px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-black">
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             {categories.map(c => <option key={c}>{c}</option>)}
           </select>
         </div>
@@ -108,20 +108,20 @@ export default function GroupAddPage() {
           <input type="text" value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             placeholder="Optional"
-            className="w-full border rounded px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
         <div>
           <label className="text-xs text-gray-500 uppercase tracking-wide">Date</label>
           <input type="date" value={form.date}
             onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-            className="w-full border rounded px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-        {saved && <p className="text-green-600 text-sm">Saved!</p>}
+        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {saved && <p className="text-green-400 text-sm">Saved!</p>}
         <button type="submit" disabled={saving || !form.amount}
-          className="w-full bg-black text-white rounded py-2 text-sm font-medium disabled:opacity-40 mt-2">
+          className="w-full bg-white text-gray-900 rounded py-2 text-sm font-medium disabled:opacity-40 mt-2">
           {saving ? 'Saving...' : 'Save Expense'}
         </button>
       </form>

@@ -33,16 +33,16 @@ export default function LoginPage() {
           <input
             type="text" placeholder="Username" value={form.username}
             onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
           <input
             type="password" placeholder="Password" value={form.password}
             onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-red-400 text-sm">{error}</p>}
           <button type="submit" disabled={loading}
-            className="w-full bg-black text-white rounded py-2 text-sm font-medium disabled:opacity-40">
+            className="w-full bg-white text-gray-900 rounded py-2 text-sm font-medium disabled:opacity-40">
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>

@@ -78,13 +78,13 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
         onClick={listening ? stop : start}
         disabled={disabled}
         className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl transition-colors disabled:opacity-40
-          ${listening ? 'bg-red-500 text-white animate-pulse' : 'bg-black text-white'}`}
+          ${listening ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-700 text-white'}`}
         aria-label={listening ? 'Stop recording' : 'Start recording'}
       >
         {listening ? '⏹' : '🎤'}
       </button>
       {transcript && (
-        <p className="text-sm text-gray-600 text-center max-w-xs">{transcript}</p>
+        <p className="text-sm text-gray-400 text-center max-w-xs">{transcript}</p>
       )}
     </div>
   );

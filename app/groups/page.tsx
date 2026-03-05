@@ -45,7 +45,7 @@ export default function GroupsPage() {
         <div className="space-y-2 mb-6">
           {groups.map(g => (
             <button key={g.id} onClick={() => router.push(`/groups/${g.id}/add`)}
-              className="w-full text-left border rounded p-3 flex justify-between items-center hover:bg-gray-50">
+              className="w-full text-left border border-gray-700 bg-gray-900 rounded p-3 flex justify-between items-center hover:bg-gray-800">
               <span className="font-medium text-sm">{g.name}</span>
               <span className="text-xs text-gray-400">→</span>
             </button>
@@ -59,10 +59,10 @@ export default function GroupsPage() {
         <input
           type="text" value={newName} onChange={e => setNewName(e.target.value)}
           placeholder="New tracker name"
-          className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+          className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
         <button type="submit" disabled={creating || !newName.trim()}
-          className="bg-black text-white px-3 py-2 rounded text-sm disabled:opacity-40">
+          className="bg-white text-gray-900 px-3 py-2 rounded text-sm disabled:opacity-40">
           Create
         </button>
       </form>

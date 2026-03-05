@@ -51,11 +51,11 @@ export default function GroupDashboardPage() {
       {loading ? <p className="text-sm text-gray-400">Loading...</p> : (
         <>
           <div className="grid grid-cols-2 gap-3 mb-6">
-            <div className="border rounded p-3">
+            <div className="border border-gray-700 bg-gray-900 rounded p-3">
               <p className="text-xs text-gray-500">Today</p>
               <p className="text-2xl font-bold mt-1">₹{todayTotal.toLocaleString()}</p>
             </div>
-            <div className="border rounded p-3">
+            <div className="border border-gray-700 bg-gray-900 rounded p-3">
               <p className="text-xs text-gray-500">This period</p>
               <p className="text-2xl font-bold mt-1">₹{periodTotal.toLocaleString()}</p>
             </div>
@@ -67,7 +67,7 @@ export default function GroupDashboardPage() {
               <div className="space-y-2">
                 {sortedCategories.map(([cat, amt]) => (
                   <div key={cat} className="flex justify-between text-sm">
-                    <span className="text-gray-600">{cat}</span>
+                    <span className="text-gray-400">{cat}</span>
                     <span className="font-medium">₹{amt.toLocaleString()}</span>
                   </div>
                 ))}
@@ -82,10 +82,10 @@ export default function GroupDashboardPage() {
             ) : (
               <div className="space-y-2">
                 {recent.map(e => (
-                  <div key={e.id} className="flex justify-between text-sm border-b pb-2">
+                  <div key={e.id} className="flex justify-between text-sm border-b border-gray-800 pb-2">
                     <div>
-                      <span className="text-gray-600">{e.category}</span>
-                      {e.description && <span className="text-gray-400 ml-2 text-xs">· {e.description}</span>}
+                      <span className="text-gray-400">{e.category}</span>
+                      {e.description && <span className="text-gray-500 ml-2 text-xs">· {e.description}</span>}
                     </div>
                     <span className="font-medium">₹{Number(e.amount).toLocaleString()}</span>
                   </div>

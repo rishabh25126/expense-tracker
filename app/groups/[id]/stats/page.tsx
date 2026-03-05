@@ -19,7 +19,7 @@ function HBar({ label, value, max }: { label: string; value: number; max: number
   return (
     <div className="flex items-center gap-2">
       <span className="w-20 text-right text-xs text-gray-500 truncate">{label}</span>
-      <div className="flex-1 bg-gray-100 rounded h-5">
+      <div className="flex-1 bg-gray-800 rounded h-5">
         <div className="h-5 rounded transition-all" style={{ width: `${Math.max(Math.round((value / max) * 100), value > 0 ? 2 : 0)}%`, backgroundColor: color }} />
       </div>
       <span className="text-xs font-medium w-16 text-right">₹{value.toLocaleString()}</span>
@@ -170,12 +170,12 @@ export default function GroupStatsPage() {
       {/* Period control */}
       <div className="flex gap-2 mb-4">
         <button onClick={startNewPeriod}
-          className="flex-1 bg-black text-white rounded py-2 text-sm font-medium">
+          className="flex-1 bg-white text-gray-900 rounded py-2 text-sm font-medium">
           Start New Period
         </button>
         {prevStart && (
           <button onClick={undoPeriod}
-            className="px-4 py-2 border rounded text-sm text-gray-600">
+            className="px-4 py-2 border border-gray-700 rounded text-sm text-gray-400">
             Undo
           </button>
         )}
