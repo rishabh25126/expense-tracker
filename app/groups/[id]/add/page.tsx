@@ -31,17 +31,18 @@ export default function GroupAddPage() {
       const res = await fetch('/api/parse-expense', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, categories }),
       });
-      const parsed: ParsedExpense = await res.json();
+      const parsed: ParsedExpense & { error?: string } = await res.json();
+      if (parsed.error) { setError(parsed.error); return; }
       setForm(f => ({
         amount: parsed.amount != null ? String(parsed.amount) : f.amount,
         category: parsed.category ?? f.category,
         description: parsed.description || f.description,
         date: parsed.date ?? f.date,
       }));
-    } catch {
-      setError('Failed to parse voice input');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to parse voice input');
     } finally {
       setParsing(false);
     }

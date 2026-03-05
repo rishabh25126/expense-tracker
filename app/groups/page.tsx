@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Group } from '@/types';
+import FeedbackButton from '@/components/FeedbackButton';
 
 export default function GroupsPage() {
   const router = useRouter();
@@ -65,6 +66,10 @@ export default function GroupsPage() {
           Create
         </button>
       </form>
+
+      <div className="mt-8 text-center">
+        <FeedbackButton />
+      </div>
     </div>
   );
 }

@@ -4,12 +4,23 @@ import { useParams } from 'next/navigation';
 import GroupNav from '@/components/GroupNav';
 import type { Expense, Group } from '@/types';
 
+const BAR_COLORS = [
+  '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6', '#f97316', '#84cc16',
+];
+
+function colorFor(label: string) {
+  let hash = 0;
+  for (let i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
+  return BAR_COLORS[hash % BAR_COLORS.length];
+}
+
 function HBar({ label, value, max }: { label: string; value: number; max: number }) {
+  const color = colorFor(label);
   return (
     <div className="flex items-center gap-2">
       <span className="w-20 text-right text-xs text-gray-500 truncate">{label}</span>
       <div className="flex-1 bg-gray-100 rounded h-5">
-        <div className="bg-black h-5 rounded transition-all" style={{ width: `${Math.max(Math.round((value / max) * 100), value > 0 ? 2 : 0)}%` }} />
+        <div className="h-5 rounded transition-all" style={{ width: `${Math.max(Math.round((value / max) * 100), value > 0 ? 2 : 0)}%`, backgroundColor: color }} />
       </div>
       <span className="text-xs font-medium w-16 text-right">₹{value.toLocaleString()}</span>
     </div>
@@ -18,27 +29,31 @@ function HBar({ label, value, max }: { label: string; value: number; max: number
 
 function DailyBars({ expenses, from }: { expenses: Expense[]; from: string }) {
   const today = new Date().toISOString().split('T')[0];
-  const days: { date: string; label: string; total: number }[] = [];
+  const days: { date: string; label: string; total: number; inPeriod: boolean }[] = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const date = d.toISOString().split('T')[0];
-    if (date < from) continue;
-    const total = expenses.filter(e => e.date === date).reduce((s, e) => s + Number(e.amount), 0);
+    const inPeriod = date >= from;
+    const total = inPeriod ? expenses.filter(e => e.date === date).reduce((s, e) => s + Number(e.amount), 0) : 0;
     const label = date === today ? 'today' : date.slice(5);
-    days.push({ date, label, total });
+    days.push({ date, label, total, inPeriod });
   }
-  if (days.length === 0) return <p className="text-xs text-gray-400">No data yet</p>;
   const max = Math.max(...days.map(d => d.total), 1);
   return (
-    <div className="flex items-end gap-0.5 h-24">
-      {days.map(({ date, label, total }) => (
-        <div key={date} className="flex-1 flex flex-col items-center gap-0.5">
+    <div className="flex items-end gap-0.5 h-28">
+      {days.map(({ date, label, total, inPeriod }) => (
+        <div key={date} className="flex-1 flex flex-col items-end gap-0.5" title={total > 0 ? `₹${total.toLocaleString()}` : ''}>
+          {total > 0 && <span className="text-[8px] text-gray-500 w-full text-center leading-none mb-0.5">₹{total >= 1000 ? `${(total/1000).toFixed(1)}k` : total}</span>}
           <div
-            className="w-full bg-black rounded-t"
-            style={{ height: `${Math.round((total / max) * 72)}px`, minHeight: total > 0 ? '3px' : '0' }}
+            className="w-full rounded-t"
+            style={{
+              height: `${Math.round((total / max) * 64)}px`,
+              minHeight: total > 0 ? '3px' : '1px',
+              backgroundColor: !inPeriod ? '#e5e7eb' : date === today ? '#6366f1' : '#93c5fd',
+            }}
           />
-          <span className="text-[9px] text-gray-400 rotate-0 truncate w-full text-center">{label}</span>
+          <span className="text-[9px] text-gray-400 truncate w-full text-center">{label}</span>
         </div>
       ))}
     </div>

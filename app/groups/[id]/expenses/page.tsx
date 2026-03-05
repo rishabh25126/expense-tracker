@@ -2,9 +2,9 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import GroupNav from '@/components/GroupNav';
-import type { Expense, Group } from '@/types';
+import type { Expense, Group, Category } from '@/types';
 
-const DEFAULT_CATS = ['All', 'Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
+const DEFAULT_CATS = ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
 
 export default function GroupExpensesPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,13 +15,17 @@ export default function GroupExpensesPage() {
   const [showAll, setShowAll] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [editForm, setEditForm] = useState({ amount: '', category: '', description: '', date: '' });
+  const [customCats, setCustomCats] = useState<Category[]>([]);
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/groups/${id}`).then(r => r.json()),
       fetch(`/api/groups/${id}/expenses`).then(r => r.json()),
-    ]).then(([g, e]) => { setGroup(g); setExpenses(e); setLoading(false); });
+      fetch(`/api/groups/${id}/categories`).then(r => r.json()),
+    ]).then(([g, e, cats]) => { setGroup(g); setExpenses(e); setCustomCats(cats); setLoading(false); });
   }, [id]);
+
+  const allCategories = [...DEFAULT_CATS, ...customCats.map((c: Category) => c.name).filter(n => !DEFAULT_CATS.includes(n))];
 
   const periodStart = group?.period_start ?? '';
 
@@ -67,7 +71,7 @@ export default function GroupExpensesPage() {
       </div>
 
       <div className="flex gap-2 flex-wrap mb-4">
-        {DEFAULT_CATS.map(c => (
+        {['All', ...allCategories].map(c => (
           <button key={c} onClick={() => setFilterCategory(c)}
             className={`text-xs px-2 py-1 rounded border ${filterCategory === c ? 'bg-black text-white' : 'text-gray-600'}`}>
             {c}
@@ -109,7 +113,7 @@ export default function GroupExpensesPage() {
             <select value={editForm.category}
               onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
               className="w-full border rounded px-3 py-2 text-sm">
-              {DEFAULT_CATS.slice(1).map(c => <option key={c}>{c}</option>)}
+              {allCategories.map(c => <option key={c}>{c}</option>)}
             </select>
             <input type="text" value={editForm.description}
               onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}

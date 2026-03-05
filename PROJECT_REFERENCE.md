@@ -114,7 +114,7 @@ Target: expense logged in under 3 seconds.
 - [x] Create custom category (POST `/api/categories`)
 - [x] Delete custom category (DELETE `/api/categories/[id]`)
 
-### Phase 8 — Auth + Groups + Stats ✅ COMPLETED
+### Phase 8 — Auth + Groups + Stats ✅ COMPLETED (commit: fe75dda)
 > Cookie-based auth, multi-group trackers, custom periods, stats with charts.
 
 **Credentials:** `admin` / `expense123` (set via `APP_USERNAME` / `APP_PASSWORD` env vars)
