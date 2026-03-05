@@ -17,6 +17,7 @@ export default function GroupAddPage() {
   const [error, setError] = useState('');
   const [customCats, setCustomCats] = useState<Category[]>([]);
   const [saved, setSaved] = useState(false);
+  const [voiceKey, setVoiceKey] = useState(0);
 
   useEffect(() => {
     fetch(`/api/groups/${id}/categories`).then(r => r.json()).then(setCustomCats);
@@ -62,6 +63,7 @@ export default function GroupAddPage() {
       if (!res.ok) throw new Error('Save failed');
       setSaved(true);
       setForm(f => ({ amount: '', category: f.category, description: '', date: TODAY() }));
+      setVoiceKey(k => k + 1);
       setTimeout(() => setSaved(false), 2000);
     } catch {
       setError('Failed to save expense');
@@ -79,7 +81,7 @@ export default function GroupAddPage() {
 
       <div className="flex flex-col items-center mb-6">
         <p className="text-sm text-gray-500 mb-3">Tap mic and speak your expense</p>
-        <VoiceInput onTranscript={handleTranscript} disabled={parsing || saving} />
+        <VoiceInput key={voiceKey} onTranscript={handleTranscript} disabled={parsing || saving} />
         {parsing && <p className="text-sm text-gray-400 mt-2">Parsing...</p>}
       </div>
 
