@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import GroupNav from '@/components/GroupNav';
+import FeedbackButton from '@/components/FeedbackButton';
 import type { Expense, Group } from '@/types';
 
 export default function GroupDashboardPage() {
@@ -43,6 +44,7 @@ export default function GroupDashboardPage() {
         <h1 className="text-xl font-bold">{group?.name ?? 'Dashboard'}</h1>
         <div className="flex gap-3">
           <button onClick={() => router.push('/groups')} className="text-xs text-gray-400">Groups</button>
+          <FeedbackButton />
           <button onClick={handleLogout} className="text-xs text-gray-400">Logout</button>
         </div>
       </div>
