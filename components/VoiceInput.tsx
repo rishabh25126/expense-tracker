@@ -12,8 +12,16 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const transcriptRef = useRef('');
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const start = useCallback(() => {
+  const stopRec = useCallback(() => {
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setListening(false);
+  }, []);
+
+  const startRec = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { alert('Voice not supported in this browser'); return; }
@@ -30,22 +38,38 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
       const text = Array.from(e.results).map((r: any) => r[0].transcript).join('');
       transcriptRef.current = text;
       setTranscript(text);
+      // Stop as soon as we get a final result — don't wait for onend
+      if (e.results[e.results.length - 1].isFinal) rec.stop();
     };
     rec.onend = () => {
+      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+      recognitionRef.current = null;
       setListening(false);
       if (transcriptRef.current) onTranscript(transcriptRef.current);
     };
-    rec.onerror = () => setListening(false);
+    rec.onerror = () => stopRec();
 
     recognitionRef.current = rec;
     rec.start();
     setListening(true);
     setTranscript('');
-  }, [onTranscript]);
+    // Safety timeout: auto-stop after 30s
+    timeoutRef.current = setTimeout(() => rec.stop(), 30000);
+  }, [onTranscript, stopRec]);
 
-  const stop = useCallback(() => {
-    recognitionRef.current?.stop();
-  }, []);
+  const start = useCallback(async () => {
+    // Prime mic permission before starting recognition (needed for PWA first-use)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
+    } catch {
+      alert('Microphone permission denied');
+      return;
+    }
+    startRec();
+  }, [startRec]);
+
+  const stop = useCallback(() => stopRec(), [stopRec]);
 
   return (
     <div className="flex flex-col items-center gap-3">

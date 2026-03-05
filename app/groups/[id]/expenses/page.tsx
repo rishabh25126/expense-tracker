@@ -29,11 +29,13 @@ export default function GroupExpensesPage() {
 
   const periodStart = group?.period_start ?? '';
 
-  const filtered = expenses.filter(e => {
-    if (!showAll && periodStart && e.date < periodStart) return false;
-    if (filterCategory !== 'All' && e.category !== filterCategory) return false;
-    return true;
-  });
+  const filtered = expenses
+    .filter(e => {
+      if (!showAll && periodStart && e.date < periodStart) return false;
+      if (filterCategory !== 'All' && e.category !== filterCategory) return false;
+      return true;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
 
   const total = filtered.reduce((s, e) => s + Number(e.amount), 0);
 
