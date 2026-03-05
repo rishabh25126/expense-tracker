@@ -5,3 +5,6 @@ node_modules/
 out/
 public/sw.js
 public/workbox-*.js
+logs/
+.claude/
+feedback.txt
