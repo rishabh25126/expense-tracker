@@ -11,12 +11,14 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
   const [transcript, setTranscript] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const transcriptRef = useRef('');
 
   const start = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { alert('Voice not supported in this browser'); return; }
 
+    transcriptRef.current = '';
     const rec = new SR();
     rec.continuous = false;
     rec.interimResults = true;
@@ -24,12 +26,14 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onresult = (e: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const text = Array.from(e.results).map((r: any) => r[0].transcript).join('');
+      transcriptRef.current = text;
       setTranscript(text);
     };
     rec.onend = () => {
       setListening(false);
-      if (transcript) onTranscript(transcript);
+      if (transcriptRef.current) onTranscript(transcriptRef.current);
     };
     rec.onerror = () => setListening(false);
 
@@ -37,7 +41,7 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
     rec.start();
     setListening(true);
     setTranscript('');
-  }, [transcript, onTranscript]);
+  }, [onTranscript]);
 
   const stop = useCallback(() => {
     recognitionRef.current?.stop();

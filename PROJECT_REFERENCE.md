@@ -114,17 +114,52 @@ Target: expense logged in under 3 seconds.
 - [x] Create custom category (POST `/api/categories`)
 - [x] Delete custom category (DELETE `/api/categories/[id]`)
 
-### Phase 8 — Smart Query (AI)
+### Phase 8 — Auth + Groups + Stats ✅ COMPLETED
+> Cookie-based auth, multi-group trackers, custom periods, stats with charts.
+
+**Credentials:** `admin` / `expense123` (set via `APP_USERNAME` / `APP_PASSWORD` env vars)
+
+**Auth:**
+- [x] `app_session` cookie (HttpOnly, 30 days), middleware checks it
+- [x] `/login` page + `/api/auth` (POST login, DELETE logout)
+
+**Groups (Trackers):**
+- [x] `groups` table (`id, name, period_start, prev_period_start, created_at`)
+- [x] `/groups` — list/create trackers
+- [x] Expenses and categories fully isolated per group
+- [x] Routing: `/groups/[id]/add|expenses|dashboard|stats|categories`
+
+**Session persistence:**
+- [x] Middleware sets `last_group` cookie on any `/groups/[id]/*` visit
+- [x] Root `/` redirects to last group's add page, or `/groups` if none
+
+**Custom periods (not calendar-based):**
+- [x] `period_start` per group — manually set when user starts new period
+- [x] `prev_period_start` for undo support
+- [x] Stats: "Start New Period" + "Undo" buttons
+- [x] All views default to current period; toggle to "All time" available
+
+**Stats (`/groups/[id]/stats`):**
+- [x] Daily spending bar chart (current period, up to last 14 days)
+- [x] Category breakdown current vs previous period (CSS horizontal bars)
+- [x] Period totals comparison
+
+**Schema — run `supabase/schema.sql` in Supabase SQL editor**
+
+**New env vars needed:** `APP_USERNAME`, `APP_PASSWORD`, `SUPABASE_SERVICE_ROLE_KEY`
+(get service role key from Supabase dashboard → Settings → API)
+
+### Phase 9 — Smart Query (AI)
 - [ ] Text input: "How much did I spend on food this week?"
 - [ ] Claude converts to structured query params
 - [ ] Execute query against Supabase
 - [ ] Return natural language answer
 
-### Phase 9 — Spending Insights (AI)
+### Phase 10 — Spending Insights (AI)
 - [ ] Weekly/monthly spending trends
 - [ ] Claude generates plain-English insights from expense data
 
-### Phase 10 — Deploy
+### Phase 11 — Deploy
 - [ ] Push to GitHub
 - [ ] Connect to Vercel
 - [ ] Set environment variables in Vercel dashboard

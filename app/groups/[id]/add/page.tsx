@@ -1,18 +1,28 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import VoiceInput from '@/components/VoiceInput';
-import type { ParsedExpense } from '@/types';
+import GroupNav from '@/components/GroupNav';
+import type { ParsedExpense, Category } from '@/types';
 
-const CATEGORIES = ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
+const DEFAULTS = ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
 const TODAY = () => new Date().toISOString().split('T')[0];
 
-export default function AddExpensePage() {
+export default function GroupAddPage() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [form, setForm] = useState({ amount: '', category: 'Food', description: '', date: TODAY() });
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [customCats, setCustomCats] = useState<Category[]>([]);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/groups/${id}/categories`).then(r => r.json()).then(setCustomCats);
+  }, [id]);
+
+  const categories = [...DEFAULTS, ...customCats.map(c => c.name).filter(n => !DEFAULTS.includes(n))];
 
   const handleTranscript = async (text: string) => {
     setParsing(true);
@@ -43,13 +53,15 @@ export default function AddExpensePage() {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch('/api/expenses', {
+      const res = await fetch(`/api/groups/${id}/expenses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error('Save failed');
-      router.push('/expenses');
+      setSaved(true);
+      setForm(f => ({ amount: '', category: f.category, description: '', date: TODAY() }));
+      setTimeout(() => setSaved(false), 2000);
     } catch {
       setError('Failed to save expense');
     } finally {
@@ -59,9 +71,9 @@ export default function AddExpensePage() {
 
   return (
     <div className="min-h-screen p-4 max-w-sm mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => router.back()} className="text-gray-500 text-sm">← Back</button>
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">Add Expense</h1>
+        <button onClick={() => router.push('/groups')} className="text-xs text-gray-400">Groups</button>
       </div>
 
       <div className="flex flex-col items-center mb-6">
@@ -82,18 +94,15 @@ export default function AddExpensePage() {
         </div>
         <div>
           <label className="text-xs text-gray-500 uppercase tracking-wide">Category</label>
-          <select
-            value={form.category}
+          <select value={form.category}
             onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-            className="w-full border rounded px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-black"
-          >
-            {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+            className="w-full border rounded px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-black">
+            {categories.map(c => <option key={c}>{c}</option>)}
           </select>
         </div>
         <div>
           <label className="text-xs text-gray-500 uppercase tracking-wide">Description</label>
-          <input
-            type="text" value={form.description}
+          <input type="text" value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             placeholder="Optional"
             className="w-full border rounded px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-black"
@@ -101,20 +110,21 @@ export default function AddExpensePage() {
         </div>
         <div>
           <label className="text-xs text-gray-500 uppercase tracking-wide">Date</label>
-          <input
-            type="date" value={form.date}
+          <input type="date" value={form.date}
             onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
             className="w-full border rounded px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-black"
           />
         </div>
         {error && <p className="text-red-500 text-sm">{error}</p>}
-        <button
-          type="submit" disabled={saving || !form.amount}
-          className="w-full bg-black text-white rounded py-2 text-sm font-medium disabled:opacity-40 mt-2"
-        >
+        {saved && <p className="text-green-600 text-sm">Saved!</p>}
+        <button type="submit" disabled={saving || !form.amount}
+          className="w-full bg-black text-white rounded py-2 text-sm font-medium disabled:opacity-40 mt-2">
           {saving ? 'Saving...' : 'Save Expense'}
         </button>
       </form>
+
+      <div className="h-14" />
+      <GroupNav groupId={id} />
     </div>
   );
 }

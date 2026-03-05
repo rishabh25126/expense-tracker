@@ -1,9 +1,9 @@
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 
 export default async function Home() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) redirect('/dashboard');
-  else redirect('/auth/login');
+  const store = await cookies();
+  const lastGroup = store.get('last_group')?.value;
+  if (lastGroup) redirect(`/groups/${lastGroup}/add`);
+  else redirect('/groups');
 }

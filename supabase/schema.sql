@@ -1,24 +1,37 @@
--- Run this in Supabase SQL editor
+-- Phase 8 Schema — run in Supabase SQL editor
+-- WARNING: drops existing tables and all data
 
-create table expenses (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete cascade not null,
-  amount numeric not null,
-  category text not null,
+DROP TABLE IF EXISTS categories CASCADE;
+DROP TABLE IF EXISTS expenses CASCADE;
+
+-- Groups (trackers)
+CREATE TABLE groups (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  period_start date NOT NULL DEFAULT CURRENT_DATE,
+  prev_period_start date,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Expenses scoped to group
+CREATE TABLE expenses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  amount numeric NOT NULL,
+  category text NOT NULL,
   description text,
-  date date not null default current_date,
-  created_at timestamptz default now()
+  date date NOT NULL DEFAULT CURRENT_DATE,
+  created_at timestamptz DEFAULT now()
 );
 
-create table categories (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete cascade not null,
-  name text not null
+-- Custom categories scoped to group
+CREATE TABLE categories (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  name text NOT NULL
 );
 
--- RLS
-alter table expenses enable row level security;
-alter table categories enable row level security;
-
-create policy "own expenses" on expenses using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "own categories" on categories using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- No RLS needed — server uses service role key
+ALTER TABLE groups DISABLE ROW LEVEL SECURITY;
+ALTER TABLE expenses DISABLE ROW LEVEL SECURITY;
+ALTER TABLE categories DISABLE ROW LEVEL SECURITY;

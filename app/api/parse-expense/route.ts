@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { createClient } from '@/lib/supabase/server';
+import { isAuthed, unauth } from '@/lib/auth';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -12,9 +12,7 @@ const YESTERDAY = () => {
 };
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!await isAuthed()) return unauth();
 
   const { text } = await req.json() as { text: string };
   if (!text?.trim()) return NextResponse.json({ error: 'No text provided' }, { status: 400 });

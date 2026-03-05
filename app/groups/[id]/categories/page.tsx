@@ -1,25 +1,26 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import GroupNav from '@/components/GroupNav';
 import type { Category } from '@/types';
 
 const DEFAULTS = ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
 
-export default function CategoriesPage() {
-  const router = useRouter();
+export default function GroupCategoriesPage() {
+  const { id } = useParams<{ id: string }>();
   const [categories, setCategories] = useState<Category[]>([]);
   const [newName, setNewName] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch('/api/categories').then(r => r.json()).then(setCategories);
-  }, []);
+    fetch(`/api/groups/${id}/categories`).then(r => r.json()).then(setCategories);
+  }, [id]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
     setSaving(true);
-    const res = await fetch('/api/categories', {
+    const res = await fetch(`/api/groups/${id}/categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName.trim() }),
@@ -30,18 +31,15 @@ export default function CategoriesPage() {
     setSaving(false);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (cid: string) => {
     if (!confirm('Delete category?')) return;
-    await fetch(`/api/categories/${id}`, { method: 'DELETE' });
-    setCategories(c => c.filter(x => x.id !== id));
+    await fetch(`/api/groups/${id}/categories/${cid}`, { method: 'DELETE' });
+    setCategories(c => c.filter(x => x.id !== cid));
   };
 
   return (
     <div className="min-h-screen p-4 max-w-sm mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => router.back()} className="text-gray-500 text-sm">← Back</button>
-        <h1 className="text-xl font-bold">Categories</h1>
-      </div>
+      <h1 className="text-xl font-bold mb-6">Categories</h1>
 
       <div className="mb-6">
         <h2 className="text-xs text-gray-500 uppercase tracking-wide mb-2">Defaults</h2>
@@ -65,8 +63,7 @@ export default function CategoriesPage() {
       )}
 
       <form onSubmit={handleAdd} className="flex gap-2">
-        <input
-          type="text" value={newName} onChange={e => setNewName(e.target.value)}
+        <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
           placeholder="New category name"
           className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
         />
@@ -76,13 +73,8 @@ export default function CategoriesPage() {
         </button>
       </form>
 
-      <nav className="fixed bottom-0 left-0 right-0 border-t bg-white flex justify-around py-3 text-xs">
-        <button onClick={() => router.push('/dashboard')} className="text-gray-500">Dashboard</button>
-        <button onClick={() => router.push('/expenses')} className="text-gray-500">Expenses</button>
-        <button onClick={() => router.push('/add')} className="text-gray-500">+ Add</button>
-        <button onClick={() => router.push('/categories')} className="font-semibold">Categories</button>
-      </nav>
       <div className="h-14" />
+      <GroupNav groupId={id} />
     </div>
   );
 }
