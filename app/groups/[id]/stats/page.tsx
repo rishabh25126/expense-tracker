@@ -27,6 +27,39 @@ function HBar({ label, value, max }: { label: string; value: number; max: number
   );
 }
 
+function MonthlyBars({ expenses }: { expenses: Expense[] }) {
+  const months: { key: string; label: string; total: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - i);
+    const key = d.toISOString().slice(0, 7); // YYYY-MM
+    const label = d.toLocaleString('default', { month: 'short' });
+    const total = expenses.filter(e => e.date.startsWith(key)).reduce((s, e) => s + Number(e.amount), 0);
+    months.push({ key, label, total });
+  }
+  const max = Math.max(...months.map(m => m.total), 1);
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  return (
+    <div className="flex items-end gap-1 h-28">
+      {months.map(({ key, label, total }) => (
+        <div key={key} className="flex-1 flex flex-col items-center gap-0.5">
+          {total > 0 && <span className="text-[8px] text-gray-500 w-full text-center leading-none mb-0.5">₹{total >= 1000 ? `${(total/1000).toFixed(1)}k` : total}</span>}
+          <div
+            className="w-full rounded-t"
+            style={{
+              height: `${Math.round((total / max) * 64)}px`,
+              minHeight: total > 0 ? '3px' : '1px',
+              backgroundColor: key === thisMonth ? '#6366f1' : '#93c5fd',
+            }}
+          />
+          <span className="text-[9px] text-gray-400 w-full text-center">{label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DailyBars({ expenses, from }: { expenses: Expense[]; from: string }) {
   const today = new Date().toISOString().split('T')[0];
   const days: { date: string; label: string; total: number; inPeriod: boolean }[] = [];
@@ -148,6 +181,12 @@ export default function GroupStatsPage() {
         )}
       </div>
       {msg && <p className="text-green-600 text-sm mb-4">{msg}</p>}
+
+      {/* Monthly chart */}
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold mb-3">Monthly spending (last 6 months)</h2>
+        <MonthlyBars expenses={expenses} />
+      </div>
 
       {/* Daily chart */}
       <div className="mb-6">
