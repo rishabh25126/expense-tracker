@@ -1,28 +1,31 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMutation } from '@tanstack/react-query';
 
 export default function LoginPage() {
   const router = useRouter();
   const [form, setForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const login = useMutation({
+    mutationFn: async (credentials: { username: string; password: string }) => {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+      });
+      if (!res.ok) throw new Error('Invalid credentials');
+      return res;
+    },
+    onSuccess: () => router.push('/'),
+    onError: () => setError('Invalid credentials'),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
-    const res = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    });
-    if (res.ok) {
-      router.push('/');
-    } else {
-      setError('Invalid credentials');
-    }
-    setLoading(false);
+    login.mutate(form);
   };
 
   return (
@@ -41,9 +44,9 @@ export default function LoginPage() {
             className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
           {error && <p className="text-red-400 text-sm">{error}</p>}
-          <button type="submit" disabled={loading}
+          <button type="submit" disabled={login.isPending}
             className="w-full bg-white text-gray-900 rounded py-2 text-sm font-medium disabled:opacity-40">
-            {loading ? 'Signing in...' : 'Sign In'}
+            {login.isPending ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
       </div>

@@ -1,33 +1,39 @@
 'use client';
 import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 
 export default function FeedbackButton() {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const sendFeedback = useMutation({
+    mutationFn: async (text: string) => {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      return res;
+    },
+    onSuccess: () => {
+      setMessage('');
+      setTimeout(() => { setOpen(false); }, 1500);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
-    setStatus('sending');
-    const res = await fetch('/api/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message }),
-    });
-    if (res.ok) {
-      setStatus('sent');
-      setMessage('');
-      setTimeout(() => { setOpen(false); setStatus('idle'); }, 1500);
-    } else {
-      setStatus('error');
-    }
+    sendFeedback.mutate(message.trim());
   };
+
+  const status = sendFeedback.isSuccess ? 'sent' : sendFeedback.isError ? 'error' : sendFeedback.isPending ? 'sending' : 'idle';
 
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => { setOpen(true); sendFeedback.reset(); }}
         className="text-xs text-gray-400 underline"
       >
         Feedback
@@ -38,7 +44,7 @@ export default function FeedbackButton() {
           <div className="bg-gray-900 border border-gray-700 w-full max-w-sm rounded-t-xl p-4 space-y-3">
             <div className="flex justify-between items-center">
               <h2 className="font-semibold text-sm">Send Feedback</h2>
-              <button onClick={() => { setOpen(false); setStatus('idle'); }} className="text-gray-400 text-sm">✕</button>
+              <button onClick={() => { setOpen(false); sendFeedback.reset(); }} className="text-gray-400 text-sm">✕</button>
             </div>
             {status === 'sent' ? (
               <p className="text-green-400 text-sm text-center py-4">Feedback saved!</p>
@@ -57,7 +63,7 @@ export default function FeedbackButton() {
                     className="flex-1 bg-white text-gray-900 rounded py-2 text-sm disabled:opacity-40">
                     {status === 'sending' ? 'Saving...' : 'Submit'}
                   </button>
-                  <button type="button" onClick={() => { setOpen(false); setStatus('idle'); }}
+                  <button type="button" onClick={() => { setOpen(false); sendFeedback.reset(); }}
                     className="flex-1 border border-gray-700 rounded py-2 text-sm text-gray-300">
                     Cancel
                   </button>

@@ -1,33 +1,39 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import GroupNav from '@/components/GroupNav';
 import type { Expense, Group, Category } from '@/types';
+import { queryKeys } from '@/lib/queryKeys';
 
 const DEFAULT_CATS = ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
 
 export default function GroupExpensesPage() {
   const { id } = useParams<{ id: string }>();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [group, setGroup] = useState<Group | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [filterCategory, setFilterCategory] = useState('All');
   const [showAll, setShowAll] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [editForm, setEditForm] = useState({ amount: '', category: '', description: '', date: '' });
-  const [customCats, setCustomCats] = useState<Category[]>([]);
 
-  useEffect(() => {
-    Promise.all([
-      fetch(`/api/groups/${id}`).then(r => r.json()),
-      fetch(`/api/groups/${id}/expenses`).then(r => r.json()),
-      fetch(`/api/groups/${id}/categories`).then(r => r.json()),
-    ]).then(([g, e, cats]) => { setGroup(g); setExpenses(e); setCustomCats(cats); setLoading(false); });
-  }, [id]);
+  const { data: group = null, isLoading: groupLoading } = useQuery({
+    queryKey: queryKeys.group(id),
+    queryFn: () => fetch(`/api/groups/${id}`).then(r => r.json()) as Promise<Group>,
+  });
+
+  const { data: expenses = [], isLoading: expensesLoading } = useQuery({
+    queryKey: queryKeys.expenses(id),
+    queryFn: () => fetch(`/api/groups/${id}/expenses`).then(r => r.json()) as Promise<Expense[]>,
+  });
+
+  const { data: customCats = [] } = useQuery({
+    queryKey: queryKeys.categories(id),
+    queryFn: () => fetch(`/api/groups/${id}/categories`).then(r => r.json()) as Promise<Category[]>,
+  });
 
   const allCategories = [...DEFAULT_CATS, ...customCats.map((c: Category) => c.name).filter(n => !DEFAULT_CATS.includes(n))];
-
   const periodStart = group?.period_start ?? '';
+  const loading = groupLoading || expensesLoading;
 
   const filtered = expenses
     .filter(e => {
@@ -39,10 +45,30 @@ export default function GroupExpensesPage() {
 
   const total = filtered.reduce((s, e) => s + Number(e.amount), 0);
 
-  const handleDelete = async (eid: string) => {
-    if (!confirm('Delete this expense?')) return;
-    await fetch(`/api/groups/${id}/expenses/${eid}`, { method: 'DELETE' });
-    setExpenses(e => e.filter(x => x.id !== eid));
+  const deleteExpense = useMutation({
+    mutationFn: (eid: string) => fetch(`/api/groups/${id}/expenses/${eid}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
+    },
+  });
+
+  const updateExpense = useMutation({
+    mutationFn: async ({ expenseId, payload }: { expenseId: string; payload: Record<string, unknown> }) => {
+      const res = await fetch(`/api/groups/${id}/expenses/${expenseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
+    },
+  });
+
+  const handleDelete = (eid: string) => {
+    if (!confirm('Are you sure you want to delete this expense? This cannot be undone.')) return;
+    deleteExpense.mutate(eid);
   };
 
   const startEdit = (exp: Expense) => {
@@ -52,20 +78,35 @@ export default function GroupExpensesPage() {
 
   const saveEdit = async () => {
     if (!editing) return;
-    const res = await fetch(`/api/groups/${id}/expenses/${editing.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...editForm, amount: Number(editForm.amount) }),
-    });
-    const updated = await res.json();
-    setExpenses(e => e.map(x => x.id === editing.id ? updated : x));
-    setEditing(null);
+    updateExpense.mutate(
+      { expenseId: editing.id, payload: { ...editForm, amount: Number(editForm.amount) } },
+      { onSuccess: () => setEditing(null) },
+    );
+  };
+
+  const handleReload = () => {
+    void Promise.all([
+      queryClient.refetchQueries({ queryKey: queryKeys.group(id) }),
+      queryClient.refetchQueries({ queryKey: queryKeys.expenses(id) }),
+      queryClient.refetchQueries({ queryKey: queryKeys.categories(id) }),
+    ]);
   };
 
   return (
     <div className="min-h-screen p-4 max-w-lg mx-auto">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold">Expenses</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-bold">Expenses</h1>
+          <button
+            type="button"
+            onClick={handleReload}
+            className="text-xs p-1.5 rounded border border-gray-600 text-gray-400 hover:text-gray-200 hover:border-gray-500"
+            title="Refresh"
+            aria-label="Refresh"
+          >
+            ↻
+          </button>
+        </div>
         <button onClick={() => setShowAll(v => !v)}
           className={`text-xs px-2 py-1 rounded border border-gray-700 ${showAll ? 'bg-white text-gray-900' : 'text-gray-400'}`}>
           {showAll ? 'Current period' : 'All time'}
@@ -124,7 +165,7 @@ export default function GroupExpensesPage() {
               onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100" />
             <div className="flex gap-2">
-              <button onClick={saveEdit} className="flex-1 bg-white text-gray-900 rounded py-2 text-sm">Save</button>
+              <button onClick={saveEdit} disabled={updateExpense.isPending} className="flex-1 bg-white text-gray-900 rounded py-2 text-sm">Save</button>
               <button onClick={() => setEditing(null)} className="flex-1 border border-gray-700 rounded py-2 text-sm text-gray-300">Cancel</button>
             </div>
           </div>
