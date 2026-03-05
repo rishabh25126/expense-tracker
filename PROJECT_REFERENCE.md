@@ -66,23 +66,23 @@ Target: expense logged in under 3 seconds.
 
 ## MVP Features (Build in this order)
 
-### Phase 1 — Project Setup
-- [ ] Create Next.js project with App Router + TypeScript (`--typescript`)
-- [ ] Enable strict mode in `tsconfig.json`
-- [ ] Install dependencies: `@anthropic-ai/sdk`, `@supabase/supabase-js`, `@supabase/ssr`, `next-pwa`
-- [ ] Configure `next.config.ts` with `next-pwa` (service worker, offline fallback)
-- [ ] Create `public/manifest.json` (PWA manifest: name, icons, theme color, display: standalone)
-- [ ] Add PWA meta tags in `app/layout.tsx`
-- [ ] Configure environment variables
-- [ ] Setup Supabase project + run schema SQL
-- [ ] Configure Supabase Auth (email/password for MVP)
+### Phase 1 — Project Setup ✅ COMPLETED (commit: b2f161a)
+- [x] Create Next.js project with App Router + TypeScript
+- [x] Enable strict mode in `tsconfig.json`
+- [x] Install dependencies: `@anthropic-ai/sdk`, `@supabase/supabase-js`, `@supabase/ssr`, `next-pwa`
+- [x] Configure `next.config.ts` with `next-pwa`
+- [x] Create `public/manifest.json`
+- [x] Add PWA meta tags in `app/layout.tsx`
+- [x] Configure `.env.local` template
+- [x] Supabase schema SQL + RLS policies (`supabase/schema.sql`)
+- [x] Login/signup pages + middleware auth guard
 
-### Phase 2 — AI Parsing API
-- [ ] Create `/api/parse-expense` route
-- [ ] Accept raw text input (voice transcript or typed)
-- [ ] Call Claude Haiku with a structured prompt
-- [ ] Return: `{ amount, category, date, description }`
-- [ ] Handle edge cases: missing fields, ambiguous input
+### Phase 2 — AI Parsing API ✅ COMPLETED (commit: next)
+- [x] `/api/parse-expense` POST route
+- [x] Auth guard (401 if not logged in)
+- [x] Claude Haiku prompt → returns `{ amount, category, date, description }`
+- [x] Handles today/yesterday date resolution
+- [x] Category auto-detection from keywords
 
 ### Phase 3 — Voice Input
 - [ ] Build `VoiceInput` component using Web Speech API
