@@ -77,43 +77,42 @@ Target: expense logged in under 3 seconds.
 - [x] Supabase schema SQL + RLS policies (`supabase/schema.sql`)
 - [x] Login/signup pages + middleware auth guard
 
-### Phase 2 — AI Parsing API ✅ COMPLETED (commit: next)
+### Phase 2 — AI Parsing API ✅ COMPLETED (commit: 1d4ad96)
 - [x] `/api/parse-expense` POST route
 - [x] Auth guard (401 if not logged in)
 - [x] Claude Haiku prompt → returns `{ amount, category, date, description }`
 - [x] Handles today/yesterday date resolution
 - [x] Category auto-detection from keywords
 
-### Phase 3 — Voice Input
-- [ ] Build `VoiceInput` component using Web Speech API
-- [ ] Show live transcript while user speaks
-- [ ] On stop: send transcript to `/api/parse-expense`
-- [ ] Display parsed result for user confirmation before saving
+### Phase 3 — Voice Input ✅ COMPLETED (commit: 3390ffc)
+- [x] `VoiceInput` component using Web Speech API
+- [x] Live transcript while speaking
+- [x] On stop: sends transcript to `/api/parse-expense`
+- [x] Parsed result pre-fills the form
 
-### Phase 4 — Expense Entry (Voice + Manual)
-- [ ] Voice entry flow: speak → parse → confirm → save
-- [ ] Manual entry form: amount, category, date, description
-- [ ] Save expense to Supabase `expenses` table
-- [ ] Validate: amount required, date defaults to today
+### Phase 4 — Expense Entry ✅ COMPLETED (commit: 3390ffc)
+- [x] `/add` page: voice entry → parse → pre-fill form → save
+- [x] Manual entry form: amount, category, date, description
+- [x] POST to `/api/expenses`, redirects to `/expenses`
+- [x] Amount required validation, date defaults to today
 
-### Phase 5 — Expense List
-- [ ] Fetch and display all expenses for logged-in user
-- [ ] Columns: Amount, Category, Date, Description, Actions
-- [ ] Edit expense (inline or modal)
-- [ ] Delete expense (with confirmation)
-- [ ] Filter by date range
-- [ ] Filter by category
+### Phase 5 — Expense List ✅ COMPLETED (commit: 3390ffc)
+- [x] `/expenses` page fetches all user expenses
+- [x] Shows amount, category, date, description
+- [x] Edit modal (PATCH), Delete with confirm
+- [x] Filter by category (pill buttons)
+- [x] Filter by date range (from/to)
 
-### Phase 6 — Dashboard
-- [ ] Total spending today
-- [ ] Total spending this month
-- [ ] Category breakdown (chart or simple list with amounts)
-- [ ] Recent 5 expenses
+### Phase 6 — Dashboard ✅ COMPLETED (commit: 3390ffc)
+- [x] Today's total spending
+- [x] This month's total spending
+- [x] Category breakdown for current month
+- [x] Recent 5 expenses
 
-### Phase 7 — Category Management
-- [ ] List default + user-created categories
-- [ ] Create custom category
-- [ ] Delete custom category (prevent if expenses use it)
+### Phase 7 — Category Management ✅ COMPLETED (commit: 3390ffc)
+- [x] `/categories` page lists defaults + custom
+- [x] Create custom category (POST `/api/categories`)
+- [x] Delete custom category (DELETE `/api/categories/[id]`)
 
 ### Phase 8 — Smart Query (AI)
 - [ ] Text input: "How much did I spend on food this week?"
