@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import GroupNav from '@/components/GroupNav';
 import type { Expense, Group, Category } from '@/types';
 import { queryKeys } from '@/lib/queryKeys';
+import { exportExpensesCSV } from '@/lib/csvExport';
 
 const DEFAULT_CATS = ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
 
@@ -107,10 +108,19 @@ export default function GroupExpensesPage() {
             ↻
           </button>
         </div>
-        <button onClick={() => setShowAll(v => !v)}
-          className={`text-xs px-2 py-1 rounded border border-gray-700 ${showAll ? 'bg-white text-gray-900' : 'text-gray-400'}`}>
-          {showAll ? 'Current period' : 'All time'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportExpensesCSV(filtered, group?.name ?? 'expenses')}
+            disabled={filtered.length === 0}
+            className="text-xs px-2 py-1 rounded border border-gray-700 text-gray-400 disabled:opacity-40"
+          >
+            Export CSV
+          </button>
+          <button onClick={() => setShowAll(v => !v)}
+            className={`text-xs px-2 py-1 rounded border border-gray-700 ${showAll ? 'bg-white text-gray-900' : 'text-gray-400'}`}>
+            {showAll ? 'Current period' : 'All time'}
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-2 flex-wrap mb-4">
@@ -163,7 +173,7 @@ export default function GroupExpensesPage() {
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500" placeholder="Description" />
             <input type="date" value={editForm.date}
               onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100" />
+              className="w-full max-w-full box-border appearance-none bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 [&::-webkit-date-and-time-value]:text-gray-100" />
             <div className="flex gap-2">
               <button onClick={saveEdit} disabled={updateExpense.isPending} className="flex-1 bg-white text-gray-900 rounded py-2 text-sm">Save</button>
               <button onClick={() => setEditing(null)} className="flex-1 border border-gray-700 rounded py-2 text-sm text-gray-300">Cancel</button>

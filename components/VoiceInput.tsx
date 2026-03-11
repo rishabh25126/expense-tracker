@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 type Props = {
   onTranscript: (text: string) => void;
@@ -9,6 +9,19 @@ type Props = {
 export default function VoiceInput({ onTranscript, disabled }: Props) {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [online, setOnline] = useState(true);
+
+  useEffect(() => {
+    setOnline(navigator.onLine);
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const transcriptRef = useRef('');
@@ -76,13 +89,16 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
       <button
         type="button"
         onClick={listening ? stop : start}
-        disabled={disabled}
+        disabled={disabled || !online}
         className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl transition-colors disabled:opacity-40
           ${listening ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-700 text-white'}`}
         aria-label={listening ? 'Stop recording' : 'Start recording'}
       >
         {listening ? '⏹' : '🎤'}
       </button>
+      {!online && (
+        <p className="text-xs text-red-400">Voice input disabled — you are offline</p>
+      )}
       {transcript && (
         <p className="text-sm text-gray-400 text-center max-w-xs">{transcript}</p>
       )}
