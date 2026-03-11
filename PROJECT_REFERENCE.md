@@ -117,7 +117,7 @@ Target: expense logged in under 3 seconds.
 ### Phase 8 — Auth + Groups + Stats ✅ COMPLETED (commit: fe75dda)
 > Cookie-based auth, multi-group trackers, custom periods, stats with charts.
 
-**Credentials:** `admin` / `expense123` (set via `APP_USERNAME` / `APP_PASSWORD` env vars)
+**Credentials:** set via `APP_USERNAME` / `APP_PASSWORD` env vars
 
 **Auth:**
 - [x] `app_session` cookie (HttpOnly, 30 days), middleware checks it
@@ -155,15 +155,66 @@ Target: expense logged in under 3 seconds.
 - [ ] Execute query against Supabase
 - [ ] Return natural language answer
 
-### Phase 10 — Spending Insights (AI)
-- [ ] Weekly/monthly spending trends
-- [ ] Claude generates plain-English insights from expense data
+### Phase 10 — Spending Insights (AI) ✅ COMPLETED
+- [x] `/api/groups/[id]/insights` GET route
+- [x] Aggregates: period totals, category breakdown, daily (14d), monthly (6m), top expenses
+- [x] Claude Haiku prompt → returns up to 5 short spending insights as plain text
+- [x] Insights section on `/groups/[id]/dashboard` with loading/error/empty states
 
-### Phase 11 — Deploy
-- [ ] Push to GitHub
-- [ ] Connect to Vercel
-- [ ] Set environment variables in Vercel dashboard
-- [ ] Test production voice input (requires HTTPS — Vercel handles this)
+### Phase 11 — Deploy ✅ COMPLETED
+- [x] Push to GitHub
+- [x] Connect to Vercel
+- [x] Set environment variables in Vercel dashboard
+- [x] Test production voice input (HTTPS via Vercel)
+
+### Phase 12 — Data Layer & Prefetch ✅ COMPLETED
+- [x] Integrate React Query across groups/expenses/categories/auth/feedback
+- [x] Wrap app with a shared `QueryClientProvider`
+- [x] Prefetch group, expenses, and categories in parallel when landing on the Add tab
+- [x] Replace `useEffect + fetch` with `useQuery` / `useMutation` and cache invalidation
+
+### Phase 13 — Group Management UX ✅ COMPLETED
+- [x] Add inline rename flow for trackers on `/groups`
+- [x] Add delete tracker button with confirmation (cascades to expenses & categories via DB)
+- [x] Clear deleted group’s cached queries (group, expenses, categories) from React Query
+- [x] Strengthen delete confirmations for expenses and trackers
+
+### Phase 15 — Advanced Insights & Alerts (Planned)
+- [ ] Deeper AI insights: anomalies (e.g. “Food spend is 40% above your average”)
+- [ ] Suggestions: “If you cut 10% from dining, you save ₹X/year”
+- [ ] Simple “insights feed” on the dashboard for each group
+
+### Phase 16 — Organization & Search (Planned)
+- [ ] Tags for expenses (e.g. `#work`, `#trip-2026`, `#reimbursable`)
+- [ ] Fast search across descriptions/categories/tags
+- [ ] Saved filters/views (e.g. “Reimbursable work expenses this quarter”)
+
+### Phase 17 — Data Portability & Connectivity ✅ COMPLETED
+- [x] Online/offline dot indicator next to "Add Expense" title (green Online / red Offline)
+- [x] Voice input mic button disabled when offline with "Voice input disabled — you are offline" message
+- [x] CSV export per group / per period (column order: Date, Amount, Category, Description)
+- [x] CSV files are **only created and consumed by the web app** (no AI involvement)
+- [x] Export button on Expenses page — exports currently filtered view (respects period + category filters)
+
+### Phase 18 — Offline Expense Queue & Auto-Sync ✅ COMPLETED
+- [x] `lib/offlineQueue.ts` — localStorage queue scoped per group (`offline_expenses_{groupId}`)
+- [x] Manual form works offline — expenses saved to localStorage queue
+- [x] Auto-sync: when `online` event fires, queued expenses POST sequentially to API (FIFO)
+- [x] Pending count shown on Add page ("2 expenses pending sync" / "Syncing...")
+- [x] "Queued!" yellow toast when saving offline, "Queue Expense" button text
+- [x] On sync failure: stops at first error, remaining items retry on next online event
+
+### Phase 19 — Advanced Analytics & Visualizations ✅ COMPLETED
+- [x] Added `recharts` library for charts (pie, line, bar)
+- [x] Shared `lib/chartColors.ts` — color palette + recharts dark theme constants
+- [x] **Dashboard**: Category pie chart (recharts PieChart + colored slices)
+- [x] **Dashboard**: Top 5 biggest spends in current period (ranked list)
+- [x] **Dashboard**: Weekly AI digest (Claude Haiku, 2-3 sentence weekly summary via `?type=digest`)
+- [x] **Stats**: Monthly trend line (12 months, recharts LineChart, replaces old CSS MonthlyBars)
+- [x] **Stats**: Spending heatmap (90-day CSS calendar grid, indigo opacity scaled by amount)
+- [x] **Stats**: Period comparison grouped bars (recharts BarChart, current vs previous side-by-side)
+- [x] Removed orphaned HBar + MonthlyBars components from stats page
+- [x] Removed empty leftover directories (app/auth, app/expenses, app/dashboard, etc.)
 
 ---
 
@@ -245,32 +296,42 @@ Rules:
 expenseTrackingApp/
 ├── app/
 │   ├── layout.tsx
-│   ├── page.tsx                    # Landing / redirect to dashboard
-│   ├── dashboard/
-│   │   └── page.tsx
-│   ├── expenses/
-│   │   └── page.tsx
-│   ├── categories/
-│   │   └── page.tsx
-│   └── auth/
-│       ├── login/page.tsx
-│       └── signup/page.tsx
+│   ├── page.tsx                    # Redirects to last group or /groups
+│   ├── login/page.tsx
+│   ├── groups/
+│   │   ├── page.tsx               # List + create trackers
+│   │   └── [id]/
+│   │       ├── add/page.tsx       # Voice + manual expense entry
+│   │       ├── expenses/page.tsx  # List with filters + CSV export
+│   │       ├── dashboard/page.tsx # Totals + category breakdown + insights
+│   │       ├── stats/page.tsx     # Charts + period controls
+│   │       └── categories/page.tsx
 ├── components/
-│   ├── VoiceInput.tsx
-│   ├── ExpenseForm.tsx
-│   ├── ExpenseList.tsx
-│   ├── ExpenseCard.tsx
-│   ├── Dashboard.tsx
-│   └── CategoryManager.tsx
+│   ├── VoiceInput.tsx             # Voice input with offline detection
+│   ├── GroupNav.tsx               # Bottom nav for group pages
+│   ├── OnlineIndicator.tsx        # Green/red online status dot
+│   ├── FeedbackButton.tsx
+│   └── QueryProvider.tsx          # React Query client provider
 ├── app/api/
-│   ├── parse-expense/route.ts
-│   ├── expenses/route.ts
-│   └── query/route.ts
+│   ├── auth/route.ts
+│   ├── groups/route.ts
+│   ├── groups/[id]/route.ts
+│   ├── groups/[id]/expenses/route.ts
+│   ├── groups/[id]/expenses/[eid]/route.ts
+│   ├── groups/[id]/categories/route.ts
+│   ├── groups/[id]/categories/[cid]/route.ts
+│   ├── groups/[id]/insights/route.ts
+│   └── parse-expense/route.ts
 ├── lib/
 │   ├── supabase/
 │   │   ├── client.ts
-│   │   └── server.ts
-│   └── claude.ts
+│   │   ├── server.ts
+│   │   └── admin.ts              # Service role client (bypasses RLS)
+│   ├── claude.ts
+│   ├── queryKeys.ts              # React Query cache keys
+│   ├── csvExport.ts              # Client-side CSV generation
+│   ├── offlineQueue.ts           # localStorage offline expense queue
+│   └── chartColors.ts            # Shared color palette + recharts theme
 ├── types/
 │   └── index.ts
 ├── PROJECT_REFERENCE.md            # This file
@@ -353,19 +414,27 @@ CREATE POLICY "Users access own categories" ON categories
 - Multi-currency
 - WhatsApp integration
 - Budget alerts
-- Offline expense queue (PWA phase 2 — save locally when offline, sync when back online)
 
 ---
 
 ## Build Order Summary
 
 1. Setup (Next.js + Supabase + env vars)
-2. Auth (login/signup)
-3. AI parse API route
-4. Voice input component
-5. Expense entry (voice + manual)
-6. Expense list (with edit/delete/filter)
-7. Dashboard
-8. Category management
-9. Smart query (AI)
-10. Deploy to Vercel
+2. AI parse API route
+3. Voice input component
+4. Expense entry (voice + manual)
+5. Expense list (with edit/delete/filter)
+6. Dashboard
+7. Category management
+8. Auth + Groups + Stats (cookie auth, multi-group, custom periods)
+9. Smart query (AI) — planned
+10. Spending insights (AI)
+11. Deploy to Vercel
+12. React Query data layer & prefetch
+13. Group management UX (rename/delete trackers)
+14. —
+15. Advanced insights & alerts — planned
+16. Organization & search — planned
+17. Data portability (offline indicator, CSV export)
+18. Offline expense queue & auto-sync
+19. Advanced analytics & visualizations (recharts, pie, trend line, heatmap, comparison, digest)
