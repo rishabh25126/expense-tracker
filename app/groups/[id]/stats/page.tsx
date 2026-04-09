@@ -119,7 +119,7 @@ export default function GroupStatsPage() {
                   <LabelList 
                     dataKey="amount" 
                     position="right" 
-                    formatter={(value: number) => `₹${value.toLocaleString()}`} 
+                    formatter={(value: any) => `₹${Number(value || 0).toLocaleString()}`} 
                     fill={RECHARTS_THEME.textFill} 
                     fontSize={11} 
                   />
