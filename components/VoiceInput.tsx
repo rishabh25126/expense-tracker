@@ -22,20 +22,43 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
       window.removeEventListener('offline', off);
     };
   }, []);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  
   const recognitionRef = useRef<any>(null);
   const transcriptRef = useRef('');
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopRec = useCallback(() => {
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-    recognitionRef.current?.stop();
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch(e) {}
+    }
     recognitionRef.current = null;
     setListening(false);
   }, []);
 
+  const abortRec = useCallback(() => {
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch(e) {}
+    }
+    recognitionRef.current = null;
+    setListening(false);
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) abortRec();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      abortRec();
+    };
+  }, [abortRec]);
+
   const startRec = useCallback(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (recognitionRef.current) abortRec();
+
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { alert('Voice not supported in this browser'); return; }
 
@@ -45,9 +68,7 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
     rec.interimResults = true;
     rec.lang = 'en-US';
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onresult = (e: any) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const text = Array.from(e.results).map((r: any) => r[0].transcript).join('');
       transcriptRef.current = text;
       setTranscript(text);
@@ -60,7 +81,15 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
       setListening(false);
       if (transcriptRef.current) onTranscript(transcriptRef.current);
     };
-    rec.onerror = () => stopRec();
+    rec.onerror = (e: any) => {
+      if (e.error === 'no-speech') {
+        if (!transcriptRef.current) setTranscript("Didn't catch that. Try again.");
+      } else {
+        console.warn('Speech recognition error:', e.error);
+        setTranscript(`Mic error: ${e.error}`);
+      }
+      abortRec();
+    };
 
     recognitionRef.current = rec;
     rec.start();
@@ -68,17 +97,9 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
     setTranscript('');
     // Safety timeout: auto-stop after 30s
     timeoutRef.current = setTimeout(() => rec.stop(), 30000);
-  }, [onTranscript, stopRec]);
+  }, [onTranscript, abortRec]);
 
-  const start = useCallback(async () => {
-    // Prime mic permission before starting recognition (needed for PWA first-use)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(t => t.stop());
-    } catch {
-      alert('Microphone permission denied');
-      return;
-    }
+  const start = useCallback(() => {
     startRec();
   }, [startRec]);
 
@@ -96,6 +117,9 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
       >
         {listening ? '⏹' : '🎤'}
       </button>
+      {listening && (
+        <p className="text-sm font-medium text-red-500 animate-pulse">Listening...</p>
+      )}
       {!online && (
         <p className="text-xs text-red-400">Voice input disabled — you are offline</p>
       )}
