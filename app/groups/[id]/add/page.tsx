@@ -92,7 +92,7 @@ export default function GroupAddPage() {
     queryFn: () => fetch(`/api/groups/${id}/categories`).then(r => r.json()) as Promise<Category[]>,
   });
 
-  const categories = [...DEFAULTS, ...customCats.map(c => c.name).filter(n => !DEFAULTS.includes(n))];
+  const categories = [...DEFAULTS, ...(Array.isArray(customCats) ? customCats : []).map(c => c.name).filter(n => !DEFAULTS.includes(n))];
 
   const parseExpense = useMutation({
     mutationFn: async (text: string) => {

@@ -42,24 +42,28 @@ export default function GroupDashboardPage() {
 
   const {
     data: insightsData,
-    isLoading: insightsLoading,
+    isFetching: insightsLoading,
     isError: insightsError,
+    refetch: fetchInsights,
   } = useQuery({
     queryKey: queryKeys.insights(id),
     queryFn: () => fetch(`/api/groups/${id}/insights`).then(r => r.json()) as Promise<InsightsResponse>,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    enabled: false,
   });
 
   const {
     data: digestData,
-    isLoading: digestLoading,
+    isFetching: digestLoading,
+    isError: digestError,
+    refetch: fetchDigest,
   } = useQuery({
     queryKey: queryKeys.digest(id),
     queryFn: () => fetch(`/api/groups/${id}/insights?type=digest`).then(r => r.json()) as Promise<DigestResponse>,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    staleTime: 1000 * 60 * 60,
+    enabled: false,
   });
 
   const logout = useMutation({
@@ -224,37 +228,58 @@ export default function GroupDashboardPage() {
       </div>
 
       <div className="mb-6">
-        <h2 className="text-sm font-semibold mb-2">Spending insights</h2>
-        {insightsLoading ? (
-          <div className="space-y-2">
+        <div className="flex justify-between items-center mb-2 flex-wrap gap-2">
+          <h2 className="text-sm font-semibold">Spending insights</h2>
+          <button 
+            onClick={() => { fetchInsights(); fetchDigest(); }}
+            disabled={insightsLoading || digestLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-full transition-all shadow-md shadow-indigo-500/20"
+          >
+            <svg className={`w-3.5 h-3.5 ${insightsLoading || digestLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+              <path d="M5 3v4M3 5h4"/>
+            </svg>
+            {insightsLoading || digestLoading ? 'Generating...' : 'Generate AI Insights'}
+          </button>
+        </div>
+        {!insightsData && !insightsLoading && !insightsError ? (
+           <p className="text-sm text-gray-400 mt-2">Click the button to generate AI insights about your spending patterns.</p>
+        ) : insightsLoading ? (
+          <div className="space-y-2 mt-3">
             {[1,2,3].map(i => <div key={i} className="h-4 bg-gray-800 rounded animate-pulse" style={{ width: `${70 + i * 10}%` }} />)}
           </div>
         ) : insightsError || insightsData?.error ? (
-          <p className="text-sm text-red-400">Could not load insights. Try refreshing.</p>
+          <p className="text-sm text-red-400 mt-3">Could not load insights. Try again.</p>
         ) : !insightsData?.insights?.length ? (
-          <p className="text-sm text-gray-400">Add a few expenses to see insights for this period.</p>
+          <p className="text-sm text-gray-400 mt-3">Add a few expenses to see insights for this period.</p>
         ) : (
-          <ul className="list-disc list-inside space-y-1 text-sm text-gray-200">
-            {insightsData.insights.map((insight, idx) => (
-              <li key={idx}>{insight}</li>
-            ))}
-          </ul>
+          <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-3 mt-3">
+            <ul className="list-disc list-inside space-y-2 text-sm text-gray-200">
+              {insightsData.insights.map((insight, idx) => (
+                <li key={idx} className="leading-snug">{insight}</li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
 
       <div className="mb-6">
         <h2 className="text-sm font-semibold mb-2">Weekly digest</h2>
-        {digestLoading ? (
-          <div className="space-y-2">
+        {!digestData && !digestLoading && !digestError ? (
+           <p className="text-sm text-gray-400 mt-2">Click the button above to generate your weekly AI digest.</p>
+        ) : digestLoading ? (
+          <div className="space-y-2 mt-3">
             <div className="h-4 bg-gray-800 rounded animate-pulse w-full" />
             <div className="h-4 bg-gray-800 rounded animate-pulse w-3/4" />
           </div>
+        ) : digestError || digestData?.error ? (
+          <p className="text-sm text-red-400 mt-3">Could not load digest. Try again.</p>
         ) : digestData?.digest ? (
-          <div className="border border-gray-700 bg-gray-900 rounded p-3">
-            <p className="text-sm text-gray-200">{digestData.digest}</p>
+          <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-3 mt-3">
+            <p className="text-sm text-gray-200 leading-snug">{digestData.digest}</p>
           </div>
         ) : (
-          <p className="text-sm text-gray-400">Add expenses this week to see your digest.</p>
+          <p className="text-sm text-gray-400 mt-3">Add expenses this week to see your digest.</p>
         )}
       </div>
 
