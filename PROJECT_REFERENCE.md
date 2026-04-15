@@ -19,7 +19,7 @@ Target: expense logged in under 3 seconds.
 | Frontend | Next.js (App Router) + TypeScript + PWA |
 | Language | TypeScript (strict mode) |
 | PWA | `next-pwa` with service worker + offline support |
-| Voice Input | Web Speech API (browser-native, free) |
+| Voice Input | `react-speech-recognition` (abstracts Web Speech API) |
 | AI Parsing | Anthropic Claude API (claude-haiku-4-5 at runtime) |
 | Backend | Next.js API Routes (TypeScript) |
 | Database | Supabase (PostgreSQL, free tier) |
@@ -224,10 +224,13 @@ Target: expense logged in under 3 seconds.
 - [x] Removed orphaned HBar + MonthlyBars components from stats page
 - [x] Removed empty leftover directories (app/auth, app/expenses, app/dashboard, etc.)
 
-### Phase 20 — System Logging ✅ COMPLETED
+### Phase 20 — System Logging & Voice Telemetry ✅ COMPLETED
 - [x] `app_logs` database table for application-wide logging
 - [x] `lib/logger.ts` updated to write logs direct to Supabase
 - [x] Hidden route `/logs` dynamically fetches events and supports filtering via URL Query params.
+- [x] End-to-End telemetry for voice flow (start/stop recording, parsing raw chunks, and AI success/failure states)
+- [x] Replaced native Web Speech API handling with `react-speech-recognition` to eliminate iOS Safari abort bugs and deduplicate strict-mode tracking variables.
+
 
 ---
 
