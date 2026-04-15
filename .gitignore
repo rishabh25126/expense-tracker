@@ -5,7 +5,7 @@ node_modules/
 out/
 public/sw.js
 public/workbox-*.js
-logs/
+/logs/
 .claude/
 feedback.txt
 .env
