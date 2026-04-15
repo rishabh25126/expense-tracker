@@ -62,6 +62,14 @@ Target: expense logged in under 3 seconds.
 
 **Default categories:** Food, Travel, Rent, Shopping, Bills, Other
 
+### Table: `app_logs` (Phase 20)
+| Column | Type |
+|---|---|
+| id | uuid (PK) |
+| level | text |
+| message | text |
+| metadata | jsonb |
+| created_at | timestamptz |
 ---
 
 ## MVP Features (Build in this order)
@@ -215,6 +223,11 @@ Target: expense logged in under 3 seconds.
 - [x] **Stats**: Period comparison grouped bars (recharts BarChart, current vs previous side-by-side)
 - [x] Removed orphaned HBar + MonthlyBars components from stats page
 - [x] Removed empty leftover directories (app/auth, app/expenses, app/dashboard, etc.)
+
+### Phase 20 — System Logging ✅ COMPLETED
+- [x] `app_logs` database table for application-wide logging
+- [x] `lib/logger.ts` updated to write logs direct to Supabase
+- [x] Hidden route `/logs` dynamically fetches events and supports filtering via URL Query params.
 
 ---
 
@@ -438,3 +451,4 @@ CREATE POLICY "Users access own categories" ON categories
 17. Data portability (offline indicator, CSV export)
 18. Offline expense queue & auto-sync
 19. Advanced analytics & visualizations (recharts, pie, trend line, heatmap, comparison, digest)
+20. System Logging (app logs via hidden /logs UI using GET search queries)

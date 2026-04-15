@@ -35,3 +35,16 @@ CREATE TABLE categories (
 ALTER TABLE groups DISABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses DISABLE ROW LEVEL SECURITY;
 ALTER TABLE categories DISABLE ROW LEVEL SECURITY;
+
+-- Application Logs (Phase 20)
+DROP TABLE IF EXISTS app_logs CASCADE;
+
+CREATE TABLE app_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  level text NOT NULL,
+  message text NOT NULL,
+  metadata jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE app_logs DISABLE ROW LEVEL SECURITY;
