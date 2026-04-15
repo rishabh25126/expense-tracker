@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
   const catList = categories?.length ? categories : ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
 
   try {
+    await log('INFO', 'Voice parse started', { text, categories: catList });
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 256,
@@ -47,8 +48,12 @@ If amount is missing return null. No extra text.`
     });
 
     const raw = (message.content[0] as { type: string; text: string }).text.trim();
+    await log('INFO', 'AI parsing raw response', { raw });
+
     const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
     const parsed = JSON.parse(cleaned);
+
+    await log('INFO', 'AI parse success', { parsed });
     return NextResponse.json(parsed);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

@@ -7,6 +7,13 @@ type Props = {
 };
 
 export default function VoiceInput({ onTranscript, disabled }: Props) {
+  const clientLog = useCallback((level: string, message: string, metadata?: any) => {
+    fetch('/api/logs', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ level, message, metadata }) 
+    }).catch(() => null);
+  }, []);
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [online, setOnline] = useState(true);
@@ -64,6 +71,7 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
 
     transcriptRef.current = '';
     const rec = new SR();
+    clientLog('info', 'Mic started recording');
     rec.continuous = false;
     rec.interimResults = true;
     rec.lang = 'en-US';
@@ -79,16 +87,20 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
       recognitionRef.current = null;
       setListening(false);
+      clientLog('info', 'Mic stopped recording', { transcript: transcriptRef.current });
       if (transcriptRef.current) onTranscript(transcriptRef.current);
     };
     rec.onerror = (e: any) => {
       if (e.error === 'no-speech') {
         if (!transcriptRef.current) setTranscript("Didn't catch that. Try again.");
+        clientLog('info', 'Mic no-speech detected');
       } else if (e.error === 'aborted') {
         // Ignored. Can happen when we stop or abort manually.
+        clientLog('info', 'Mic recording aborted');
       } else {
         console.warn('Speech recognition error:', e.error);
         setTranscript(`Mic error: ${e.error}`);
+        clientLog('warn', 'Mic recognition error', { error: e.error });
       }
       abortRec();
     };
