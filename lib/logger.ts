@@ -1,16 +1,23 @@
-import { appendFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-
-const LOG_FILE = join(process.cwd(), 'logs', 'app.log');
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function log(level: 'INFO' | 'ERROR' | 'WARN', message: string, data?: unknown) {
-  const timestamp = new Date().toISOString();
-  const dataStr = data ? ' ' + JSON.stringify(data) : '';
-  const line = `[${timestamp}] [${level}] ${message}${dataStr}\n`;
   try {
-    await mkdir(join(process.cwd(), 'logs'), { recursive: true });
-    await appendFile(LOG_FILE, line, 'utf8');
-  } catch {
+    const supabase = createAdminClient();
+    
+    // Convert 'INFO', 'ERROR', 'WARN' to lowercase for consistency
+    const dbLevel = level.toLowerCase();
+    
+    const { error } = await supabase.from('app_logs').insert({
+      level: dbLevel,
+      message,
+      metadata: data || null,
+    });
+    
+    if (error) {
+      console.error('Failed to write app log to database:', error);
+    }
+  } catch (e) {
     // silently fail — don't break the app for logging failures
+    console.error('Failed to execute log function:', e);
   }
 }

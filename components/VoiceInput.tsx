@@ -84,6 +84,8 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
     rec.onerror = (e: any) => {
       if (e.error === 'no-speech') {
         if (!transcriptRef.current) setTranscript("Didn't catch that. Try again.");
+      } else if (e.error === 'aborted') {
+        // Ignored. Can happen when we stop or abort manually.
       } else {
         console.warn('Speech recognition error:', e.error);
         setTranscript(`Mic error: ${e.error}`);
