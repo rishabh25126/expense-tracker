@@ -1,5 +1,7 @@
 'use client';
-import { useState, useRef, useCallback, useEffect } from 'react';
+import 'regenerator-runtime/runtime';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 
 type Props = {
   onTranscript: (text: string) => void;
@@ -14,8 +16,7 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
       body: JSON.stringify({ level, message, metadata }) 
     }).catch(() => null);
   }, []);
-  const [listening, setListening] = useState(false);
-  const [transcript, setTranscript] = useState('');
+
   const [online, setOnline] = useState(true);
 
   useEffect(() => {
@@ -29,95 +30,49 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
       window.removeEventListener('offline', off);
     };
   }, []);
-  
-  const recognitionRef = useRef<any>(null);
-  const transcriptRef = useRef('');
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const stopRec = useCallback(() => {
-    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch(e) {}
-    }
-    recognitionRef.current = null;
-    setListening(false);
-  }, []);
+  const {
+    transcript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition
+  } = useSpeechRecognition();
 
-  const abortRec = useCallback(() => {
-    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-    if (recognitionRef.current) {
-      try { recognitionRef.current.abort(); } catch(e) {}
-    }
-    recognitionRef.current = null;
-    setListening(false);
-  }, []);
+  const lastProcessedRef = useRef('');
 
+  // Safety to ensure we don't listen forever and we pass transcript
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) abortRec();
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      abortRec();
-    };
-  }, [abortRec]);
-
-  const startRec = useCallback(() => {
-    if (recognitionRef.current) abortRec();
-
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { alert('Voice not supported in this browser'); return; }
-
-    transcriptRef.current = '';
-    const rec = new SR();
-    clientLog('info', 'Mic started recording');
-    rec.continuous = false;
-    rec.interimResults = true;
-    rec.lang = 'en-US';
-
-    rec.onresult = (e: any) => {
-      const text = Array.from(e.results).map((r: any) => r[0].transcript).join('');
-      transcriptRef.current = text;
-      setTranscript(text);
-      // Stop as soon as we get a final result — don't wait for onend
-      if (e.results[e.results.length - 1].isFinal) rec.stop();
-    };
-    rec.onend = () => {
-      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-      recognitionRef.current = null;
-      setListening(false);
-      clientLog('info', 'Mic stopped recording', { transcript: transcriptRef.current });
-      if (transcriptRef.current) onTranscript(transcriptRef.current);
-    };
-    rec.onerror = (e: any) => {
-      if (e.error === 'no-speech') {
-        if (!transcriptRef.current) setTranscript("Didn't catch that. Try again.");
-        clientLog('info', 'Mic no-speech detected');
-      } else if (e.error === 'aborted') {
-        // Ignored. Can happen when we stop or abort manually.
-        clientLog('info', 'Mic recording aborted');
-      } else {
-        console.warn('Speech recognition error:', e.error);
-        setTranscript(`Mic error: ${e.error}`);
-        clientLog('warn', 'Mic recognition error', { error: e.error });
-      }
-      abortRec();
-    };
-
-    recognitionRef.current = rec;
-    rec.start();
-    setListening(true);
-    setTranscript('');
-    // Safety timeout: auto-stop after 30s
-    timeoutRef.current = setTimeout(() => rec.stop(), 30000);
-  }, [onTranscript, abortRec]);
+    if (!listening && transcript && transcript !== lastProcessedRef.current) {
+      lastProcessedRef.current = transcript;
+      clientLog('info', 'Mic stopped recording', { transcript });
+      onTranscript(transcript);
+      resetTranscript();
+      // small delay to reset the ref so subsequent matching inputs aren't ignored
+      setTimeout(() => { lastProcessedRef.current = ''; }, 1000);
+    }
+  }, [listening, transcript, onTranscript, resetTranscript, clientLog]);
 
   const start = useCallback(() => {
-    startRec();
-  }, [startRec]);
+    if (!browserSupportsSpeechRecognition) {
+      alert('Voice not supported in this browser');
+      return;
+    }
+    resetTranscript();
+    clientLog('info', 'Mic started recording');
+    SpeechRecognition.startListening({ continuous: false, language: 'en-US' });
+  }, [browserSupportsSpeechRecognition, resetTranscript, clientLog]);
 
-  const stop = useCallback(() => stopRec(), [stopRec]);
+  const stop = useCallback(() => {
+    SpeechRecognition.stopListening();
+  }, []);
+
+  if (!browserSupportsSpeechRecognition) {
+    return (
+      <div className="flex flex-col items-center gap-3">
+        <p className="text-xs text-red-400">Voice input not supported in this browser</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-3">
