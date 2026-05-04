@@ -1,9 +1,9 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import GroupNav from '@/components/GroupNav';
-import type { Expense } from '@/types';
+import type { Expense, Group } from '@/types';
 import { queryKeys } from '@/lib/queryKeys';
 import { RECHARTS_THEME } from '@/lib/chartColors';
 
@@ -20,39 +20,77 @@ const LabelList = dynamic(() => import('recharts').then(m => m.LabelList), { ssr
 
 export default function GroupStatsPage() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
 
-  const { data: rawExpenses = [], isLoading } = useQuery({
+  const { data: group = null, isLoading: groupLoading } = useQuery({
+    queryKey: queryKeys.group(id),
+    queryFn: () => fetch(`/api/groups/${id}`).then(r => r.json()) as Promise<Group>,
+  });
+
+  const { data: rawExpenses = [], isLoading: expensesLoading } = useQuery({
     queryKey: queryKeys.expenses(id),
     queryFn: () => fetch(`/api/groups/${id}/expenses`).then(r => r.json()) as Promise<Expense[]>,
   });
 
+  const startPeriod = useMutation({
+    mutationFn: () => fetch(`/api/groups/${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'start_period' }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.group(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
+    }
+  });
+
+  const undoPeriod = useMutation({
+    mutationFn: () => fetch(`/api/groups/${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'undo_period' }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.group(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
+    }
+  });
+
   const expenses = Array.isArray(rawExpenses) ? rawExpenses : [];
 
-  if (isLoading) return <div className="p-4 text-sm text-gray-400">Loading...</div>;
+  if (groupLoading || expensesLoading) return <div className="p-4 text-sm text-gray-400">Loading...</div>;
 
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
-  const thisMonthKey = `${currentYear}-${currentMonth}`;
-
-  const thisMonthExpenses = expenses.filter(e => e.date.startsWith(thisMonthKey));
+  const periodStart = group?.period_start ?? '';
+  const currentPeriodExpenses = expenses.filter(e => !periodStart || e.date >= periodStart);
 
   const catTotals: Record<string, number> = {};
-  thisMonthExpenses.forEach(e => {
+  currentPeriodExpenses.forEach(e => {
     catTotals[e.category] = (catTotals[e.category] || 0) + Number(e.amount);
   });
 
   return (
     <div className="min-h-screen p-4 max-w-lg mx-auto">
-      <h1 className="text-xl font-bold mb-4">Stats</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-xl font-bold">Stats</h1>
+        <div className="flex gap-2">
+          {group?.prev_period_start && (
+            <button
+              onClick={() => { if (confirm('Undo start period?')) undoPeriod.mutate(); }}
+              disabled={undoPeriod.isPending}
+              className="text-xs px-3 py-1.5 rounded border border-gray-700 text-gray-400 disabled:opacity-50"
+            >
+              Undo
+            </button>
+          )}
+          <button
+            onClick={() => { if (confirm('Start a new period? This will reset your current period stats.')) startPeriod.mutate(); }}
+            disabled={startPeriod.isPending}
+            className="text-xs px-3 py-1.5 rounded bg-white text-gray-900 font-medium disabled:opacity-50"
+          >
+            Start New Period
+          </button>
+        </div>
+      </div>
 
       <div className="flex gap-3 mb-8 text-center">
         <div className="border border-gray-700 bg-gray-900/50 rounded-lg p-3 flex-1">
-           <p className="text-xs text-gray-400">Total Expenses (This Month)</p>
-           <p className="text-xl font-bold mt-1 text-indigo-400">₹{thisMonthExpenses.reduce((s, e) => s + Number(e.amount), 0).toLocaleString()}</p>
+           <p className="text-xs text-gray-400">Total Expenses (Current Period)</p>
+           <p className="text-xl font-bold mt-1 text-indigo-400">₹{currentPeriodExpenses.reduce((s, e) => s + Number(e.amount), 0).toLocaleString()}</p>
         </div>
         <div className="border border-gray-700 bg-gray-900/50 rounded-lg p-3 flex-1">
-           <p className="text-xs text-gray-400">Categories Used (This Month)</p>
+           <p className="text-xs text-gray-400">Categories Used (Current Period)</p>
            <p className="text-xl font-bold mt-1 text-indigo-400">{Object.keys(catTotals).length}</p>
         </div>
       </div>
@@ -89,10 +127,10 @@ export default function GroupStatsPage() {
       </div>
 
       <div className="mb-6">
-        <h2 className="text-sm font-semibold mb-3">Category-wise spends (This Month)</h2>
+        <h2 className="text-sm font-semibold mb-3">Category-wise spends (Current Period)</h2>
         {(() => {
           const catTotals: Record<string, number> = {};
-          thisMonthExpenses.forEach(e => {
+          currentPeriodExpenses.forEach(e => {
             catTotals[e.category] = (catTotals[e.category] || 0) + Number(e.amount);
           });
           const categoryData = Object.entries(catTotals)
