@@ -26,6 +26,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 - Category management (defaults + custom per group)
 - CSV export (exports filtered view from Expenses page)
 - Offline support: online/offline indicator, voice disabled when offline, offline expense queue with auto-sync
+- Daily Vercel Cron keepalive that performs a lightweight Supabase read for Free Plan inactivity protection
 - PWA installable on mobile
 
 ## Architecture
@@ -50,6 +51,12 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 - `/api/parse-expense` sends voice transcript to Claude Haiku
 - Returns structured `{ amount, category, date, description }`
 - `/api/groups/[id]/insights` aggregates spending data, Claude generates plain-text insights
+
+### Scheduled Keepalive
+- Vercel Cron calls `/api/cron/keep-supabase-awake` once daily at `03:30 UTC`
+- The route requires `CRON_SECRET`; Vercel sends it as `Authorization: Bearer <CRON_SECRET>`
+- The route also verifies the expected `x-vercel-cron-schedule` header
+- The route performs a read-only `groups` table check through the Supabase service role client and returns no database details
 
 ## Routing
 
@@ -76,6 +83,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 | `/api/groups/[id]/categories/[cid]` | DELETE | Delete category |
 | `/api/groups/[id]/insights` | GET | AI spending insights |
 | `/api/parse-expense` | POST | AI voice transcript parsing |
+| `/api/cron/keep-supabase-awake` | GET | Protected daily Supabase keepalive |
 
 ## Key Files
 
@@ -90,6 +98,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 | `components/GroupNav.tsx` | Bottom nav for group pages |
 | `components/VoiceInput.tsx` | Voice input with offline detection |
 | `components/OnlineIndicator.tsx` | Green/red online status dot |
+| `vercel.json` | Daily Vercel Cron schedule |
 | `supabase/schema.sql` | Database schema |
 | `PROJECT_REFERENCE.md` | Single source of truth for build phases |
 
@@ -136,9 +145,11 @@ CREATE TABLE categories (
    ANTHROPIC_API_KEY=
    APP_USERNAME=
    APP_PASSWORD=
+   CRON_SECRET=
    ```
-4. Run `supabase/schema.sql` in Supabase SQL editor
-5. `npm run dev`
+4. Set the same `CRON_SECRET` in Vercel project environment variables
+5. Run `supabase/schema.sql` in Supabase SQL editor
+6. `npm run dev`
 
 ## Currency
 

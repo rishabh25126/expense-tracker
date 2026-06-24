@@ -216,6 +216,14 @@ Target: expense logged in under 3 seconds.
 - [x] Removed orphaned HBar + MonthlyBars components from stats page
 - [x] Removed empty leftover directories (app/auth, app/expenses, app/dashboard, etc.)
 
+### Phase 20 — Supabase Keepalive Cron ✅ COMPLETED
+- [x] Added `vercel.json` daily cron schedule (`30 3 * * *`)
+- [x] Added `/api/cron/keep-supabase-awake` GET route
+- [x] Route is protected by `CRON_SECRET` via `Authorization: Bearer <secret>`
+- [x] Route verifies the expected `x-vercel-cron-schedule` header and does not expose DB error details
+- [x] Route performs a lightweight read-only Supabase `groups` table reachability check
+- [x] Purpose: reduce Free Plan inactivity pause risk for this personal app
+
 ---
 
 ## Environment Variables Required
@@ -224,6 +232,10 @@ Target: expense logged in under 3 seconds.
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ANTHROPIC_API_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+APP_USERNAME=
+APP_PASSWORD=
+CRON_SECRET=
 ```
 
 ---
@@ -321,6 +333,7 @@ expenseTrackingApp/
 │   ├── groups/[id]/categories/route.ts
 │   ├── groups/[id]/categories/[cid]/route.ts
 │   ├── groups/[id]/insights/route.ts
+│   ├── cron/keep-supabase-awake/route.ts
 │   └── parse-expense/route.ts
 ├── lib/
 │   ├── supabase/
@@ -334,6 +347,7 @@ expenseTrackingApp/
 │   └── chartColors.ts            # Shared color palette + recharts theme
 ├── types/
 │   └── index.ts
+├── vercel.json                    # Daily Supabase keepalive cron
 ├── PROJECT_REFERENCE.md            # This file
 └── .env.local
 ```
@@ -438,3 +452,4 @@ CREATE POLICY "Users access own categories" ON categories
 17. Data portability (offline indicator, CSV export)
 18. Offline expense queue & auto-sync
 19. Advanced analytics & visualizations (recharts, pie, trend line, heatmap, comparison, digest)
+20. Supabase keepalive cron (daily Vercel Cron + protected read-only DB check)
