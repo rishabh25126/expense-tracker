@@ -92,8 +92,8 @@ export default async function LogsPage({ searchParams }: PageProps) {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium uppercase
-                        ${log.level === 'error' ? 'bg-red-500/20 text-red-400' : 
-                          log.level === 'warn' ? 'bg-yellow-500/20 text-yellow-400' : 
+                        ${log.level === 'error' ? 'bg-red-500/20 text-red-400' :
+                          log.level === 'warn' ? 'bg-yellow-500/20 text-yellow-400' :
                           'bg-blue-500/20 text-blue-400'}`}
                       >
                         {log.level}

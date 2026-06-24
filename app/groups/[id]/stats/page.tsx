@@ -136,7 +136,7 @@ export default function GroupStatsPage() {
           const categoryData = Object.entries(catTotals)
             .map(([category, amount]) => ({ category, amount }))
             .sort((a, b) => b.amount - a.amount);
-            
+
           if (categoryData.length === 0) {
             return <p className="text-xs text-gray-400">No expenses yet</p>;
           }
@@ -154,12 +154,12 @@ export default function GroupStatsPage() {
                   cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                 />
                 <Bar dataKey="amount" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={24}>
-                  <LabelList 
-                    dataKey="amount" 
-                    position="right" 
-                    formatter={(value: any) => `₹${Number(value || 0).toLocaleString()}`} 
-                    fill={RECHARTS_THEME.textFill} 
-                    fontSize={11} 
+                  <LabelList
+                    dataKey="amount"
+                    position="right"
+                    formatter={(value: any) => `₹${Number(value || 0).toLocaleString()}`}
+                    fill={RECHARTS_THEME.textFill}
+                    fontSize={11}
                   />
                 </Bar>
               </BarChart>

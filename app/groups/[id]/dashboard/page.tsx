@@ -230,7 +230,7 @@ export default function GroupDashboardPage() {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2 flex-wrap gap-2">
           <h2 className="text-sm font-semibold">Spending insights</h2>
-          <button 
+          <button
             onClick={() => { fetchInsights(); fetchDigest(); }}
             disabled={insightsLoading || digestLoading}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-full transition-all shadow-md shadow-indigo-500/20"

@@ -10,10 +10,10 @@ type Props = {
 
 export default function VoiceInput({ onTranscript, disabled }: Props) {
   const clientLog = useCallback((level: string, message: string, metadata?: any) => {
-    fetch('/api/logs', { 
-      method: 'POST', 
+    fetch('/api/logs', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ level, message, metadata }) 
+      body: JSON.stringify({ level, message, metadata })
     }).catch(() => null);
   }, []);
 
