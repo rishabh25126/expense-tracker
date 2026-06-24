@@ -1,5 +1,7 @@
 'use client';
-import { useState, useRef, useCallback, useEffect } from 'react';
+import 'regenerator-runtime/runtime';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 
 type Props = {
   onTranscript: (text: string) => void;
@@ -7,8 +9,14 @@ type Props = {
 };
 
 export default function VoiceInput({ onTranscript, disabled }: Props) {
-  const [listening, setListening] = useState(false);
-  const [transcript, setTranscript] = useState('');
+  const clientLog = useCallback((level: string, message: string, metadata?: any) => {
+    fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ level, message, metadata })
+    }).catch(() => null);
+  }, []);
+
   const [online, setOnline] = useState(true);
 
   useEffect(() => {
@@ -22,67 +30,49 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
       window.removeEventListener('offline', off);
     };
   }, []);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null);
-  const transcriptRef = useRef('');
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const stopRec = useCallback(() => {
-    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-    recognitionRef.current?.stop();
-    recognitionRef.current = null;
-    setListening(false);
-  }, []);
+  const {
+    transcript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition
+  } = useSpeechRecognition();
 
-  const startRec = useCallback(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { alert('Voice not supported in this browser'); return; }
+  const lastProcessedRef = useRef('');
 
-    transcriptRef.current = '';
-    const rec = new SR();
-    rec.continuous = false;
-    rec.interimResults = true;
-    rec.lang = 'en-US';
+  // Safety to ensure we don't listen forever and we pass transcript
+  useEffect(() => {
+    if (!listening && transcript && transcript !== lastProcessedRef.current) {
+      lastProcessedRef.current = transcript;
+      clientLog('info', 'Mic stopped recording', { transcript });
+      onTranscript(transcript);
+      resetTranscript();
+      // small delay to reset the ref so subsequent matching inputs aren't ignored
+      setTimeout(() => { lastProcessedRef.current = ''; }, 1000);
+    }
+  }, [listening, transcript, onTranscript, resetTranscript, clientLog]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rec.onresult = (e: any) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const text = Array.from(e.results).map((r: any) => r[0].transcript).join('');
-      transcriptRef.current = text;
-      setTranscript(text);
-      // Stop as soon as we get a final result — don't wait for onend
-      if (e.results[e.results.length - 1].isFinal) rec.stop();
-    };
-    rec.onend = () => {
-      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-      recognitionRef.current = null;
-      setListening(false);
-      if (transcriptRef.current) onTranscript(transcriptRef.current);
-    };
-    rec.onerror = () => stopRec();
-
-    recognitionRef.current = rec;
-    rec.start();
-    setListening(true);
-    setTranscript('');
-    // Safety timeout: auto-stop after 30s
-    timeoutRef.current = setTimeout(() => rec.stop(), 30000);
-  }, [onTranscript, stopRec]);
-
-  const start = useCallback(async () => {
-    // Prime mic permission before starting recognition (needed for PWA first-use)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(t => t.stop());
-    } catch {
-      alert('Microphone permission denied');
+  const start = useCallback(() => {
+    if (!browserSupportsSpeechRecognition) {
+      alert('Voice not supported in this browser');
       return;
     }
-    startRec();
-  }, [startRec]);
+    resetTranscript();
+    clientLog('info', 'Mic started recording');
+    SpeechRecognition.startListening({ continuous: false, language: 'en-US' });
+  }, [browserSupportsSpeechRecognition, resetTranscript, clientLog]);
 
-  const stop = useCallback(() => stopRec(), [stopRec]);
+  const stop = useCallback(() => {
+    SpeechRecognition.stopListening();
+  }, []);
+
+  if (!browserSupportsSpeechRecognition) {
+    return (
+      <div className="flex flex-col items-center gap-3">
+        <p className="text-xs text-red-400">Voice input not supported in this browser</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -96,6 +86,9 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
       >
         {listening ? '⏹' : '🎤'}
       </button>
+      {listening && (
+        <p className="text-sm font-medium text-red-500 animate-pulse">Listening...</p>
+      )}
       {!online && (
         <p className="text-xs text-red-400">Voice input disabled — you are offline</p>
       )}

@@ -32,11 +32,11 @@ export default function GroupExpensesPage() {
     queryFn: () => fetch(`/api/groups/${id}/categories`).then(r => r.json()) as Promise<Category[]>,
   });
 
-  const allCategories = [...DEFAULT_CATS, ...customCats.map((c: Category) => c.name).filter(n => !DEFAULT_CATS.includes(n))];
+  const allCategories = [...DEFAULT_CATS, ...(Array.isArray(customCats) ? customCats : []).map((c: Category) => c.name).filter(n => !DEFAULT_CATS.includes(n))];
   const periodStart = group?.period_start ?? '';
   const loading = groupLoading || expensesLoading;
 
-  const filtered = expenses
+  const filtered = (Array.isArray(expenses) ? expenses : [])
     .filter(e => {
       if (!showAll && periodStart && e.date < periodStart) return false;
       if (filterCategory !== 'All' && e.category !== filterCategory) return false;
