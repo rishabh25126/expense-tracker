@@ -239,6 +239,15 @@ Target: expense logged in under 3 seconds.
 - [x] Route performs a lightweight read-only Supabase `groups` table reachability check
 - [x] Purpose: reduce Free Plan inactivity pause risk for this personal app
 
+### Phase 22 — Multi-Phone Push Notifications ✅ COMPLETED
+- [x] Added `push_subscriptions` table for per-device tracker subscriptions
+- [x] Added `/api/groups/[id]/push-subscriptions` POST/DELETE route
+- [x] Added Add-page "Other-phone alerts" toggle using browser Push API + VAPID public key
+- [x] Added custom `next-pwa` worker handler for `push` and `notificationclick`
+- [x] Expense create route now sends push notifications to other subscribed devices in the same tracker
+- [x] Originating device is excluded via client-provided `x-device-id`
+- [x] iPhone/iPad support assumes Home Screen installation before permission request
+
 ---
 
 ## Environment Variables Required
@@ -251,6 +260,9 @@ SUPABASE_SERVICE_ROLE_KEY=
 APP_USERNAME=
 APP_PASSWORD=
 CRON_SECRET=
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=
 ```
 
 ---
@@ -348,6 +360,7 @@ expenseTrackingApp/
 │   ├── groups/[id]/categories/route.ts
 │   ├── groups/[id]/categories/[cid]/route.ts
 │   ├── groups/[id]/insights/route.ts
+│   ├── groups/[id]/push-subscriptions/route.ts
 │   ├── cron/keep-supabase-awake/route.ts
 │   └── parse-expense/route.ts
 ├── lib/
@@ -355,13 +368,16 @@ expenseTrackingApp/
 │   │   ├── client.ts
 │   │   ├── server.ts
 │   │   └── admin.ts              # Service role client (bypasses RLS)
-│   ├── claude.ts
+│   ├── push.ts                   # Web Push delivery via VAPID
+│   ├── deviceId.ts               # Stable per-device browser identifier
 │   ├── queryKeys.ts              # React Query cache keys
 │   ├── csvExport.ts              # Client-side CSV generation
 │   ├── offlineQueue.ts           # localStorage offline expense queue
 │   └── chartColors.ts            # Shared color palette + recharts theme
 ├── types/
 │   └── index.ts
+├── worker/
+│   └── index.js                  # Custom push / notification click service worker code
 ├── vercel.json                    # Daily Supabase keepalive cron
 ├── PROJECT_REFERENCE.md            # This file
 └── .env.local
@@ -469,3 +485,4 @@ CREATE POLICY "Users access own categories" ON categories
 19. Advanced analytics & visualizations (recharts, pie, trend line, heatmap, comparison, digest)
 20. System Logging (app logs via hidden /logs UI using GET search queries)
 21. Supabase keepalive cron (daily Vercel Cron + protected read-only DB check)
+22. Multi-phone push notifications (device subscriptions + server push on expense create)

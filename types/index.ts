@@ -28,3 +28,14 @@ export type Category = {
   group_id: string;
   name: string;
 };
+
+export type PushSubscriptionRecord = {
+  id: string;
+  group_id: string;
+  device_id: string;
+  endpoint: string;
+  enabled: boolean;
+  user_agent: string | null;
+  created_at: string;
+  updated_at: string;
+};
