@@ -3,6 +3,7 @@
 
 DROP TABLE IF EXISTS categories CASCADE;
 DROP TABLE IF EXISTS expenses CASCADE;
+DROP TABLE IF EXISTS push_subscriptions CASCADE;
 
 -- Groups (trackers)
 CREATE TABLE groups (
@@ -35,6 +36,25 @@ CREATE TABLE categories (
 ALTER TABLE groups DISABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses DISABLE ROW LEVEL SECURITY;
 ALTER TABLE categories DISABLE ROW LEVEL SECURITY;
+
+-- Push subscriptions (one row per device/browser install per tracker)
+CREATE TABLE push_subscriptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  device_id text NOT NULL,
+  endpoint text NOT NULL,
+  subscription jsonb NOT NULL,
+  enabled boolean NOT NULL DEFAULT true,
+  user_agent text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX push_subscriptions_group_id_idx ON push_subscriptions(group_id);
+CREATE INDEX push_subscriptions_device_id_idx ON push_subscriptions(device_id);
+CREATE UNIQUE INDEX push_subscriptions_group_device_uidx ON push_subscriptions(group_id, device_id);
+
+ALTER TABLE push_subscriptions DISABLE ROW LEVEL SECURITY;
 
 -- Application Logs (Phase 20)
 DROP TABLE IF EXISTS app_logs CASCADE;

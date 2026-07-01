@@ -5,9 +5,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import VoiceInput from '@/components/VoiceInput';
 import GroupNav from '@/components/GroupNav';
 import OnlineIndicator from '@/components/OnlineIndicator';
+import PushNotificationsToggle from '@/components/PushNotificationsToggle';
 import type { ParsedExpense, Category, Group, Expense } from '@/types';
 import { queryKeys } from '@/lib/queryKeys';
 import { enqueue, pendingCount, getQueue, dequeue } from '@/lib/offlineQueue';
+import { getDeviceId } from '@/lib/deviceId';
 
 const DEFAULTS = ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
 const TODAY = () => new Date().toISOString().split('T')[0];
@@ -70,7 +72,10 @@ export default function GroupAddPage() {
         try {
           const res = await fetch(`/api/groups/${id}/expenses`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'x-device-id': getDeviceId(),
+            },
             body: JSON.stringify(item),
           });
           if (!res.ok) break;
@@ -112,7 +117,10 @@ export default function GroupAddPage() {
     mutationFn: async (payload: typeof form) => {
       const res = await fetch(`/api/groups/${id}/expenses`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': getDeviceId(),
+        },
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('Save failed');
@@ -179,6 +187,10 @@ export default function GroupAddPage() {
         <p className="text-sm text-gray-500 mb-3">Tap mic and speak your expense</p>
         <VoiceInput key={voiceKey} onTranscript={handleTranscript} disabled={parsing || saving} />
         {parsing && <p className="text-sm text-gray-400 mt-2">Parsing...</p>}
+      </div>
+
+      <div className="mb-5">
+        <PushNotificationsToggle groupId={id} />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
