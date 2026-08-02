@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import GroupNav from '@/components/GroupNav';
-import type { Expense, Group, Category } from '@/types';
+import type { Expense, Group, Category, MeResponse } from '@/types';
 import { queryKeys } from '@/lib/queryKeys';
 import { exportExpensesCSV } from '@/lib/csvExport';
 
@@ -30,6 +30,11 @@ export default function GroupExpensesPage() {
   const { data: customCats = [] } = useQuery({
     queryKey: queryKeys.categories(id),
     queryFn: () => fetch(`/api/groups/${id}/categories`).then(r => r.json()) as Promise<Category[]>,
+  });
+
+  const { data: me } = useQuery({
+    queryKey: queryKeys.me,
+    queryFn: () => fetch('/api/me').then(r => r.json()) as Promise<MeResponse>,
   });
 
   const allCategories = [...DEFAULT_CATS, ...(Array.isArray(customCats) ? customCats : []).map((c: Category) => c.name).filter(n => !DEFAULT_CATS.includes(n))];
@@ -141,16 +146,26 @@ export default function GroupExpensesPage() {
       ) : (
         <div className="space-y-2">
           {filtered.map(exp => (
-            <div key={exp.id} className="border border-gray-700 bg-gray-900 rounded p-3 flex justify-between items-start">
+            <div
+              key={exp.id}
+              className="border border-gray-700 bg-gray-900 rounded p-3 flex justify-between items-start"
+              style={{ borderLeftColor: exp.creator_color || '#6b7280', borderLeftWidth: 4 }}
+            >
               <div>
                 <p className="font-medium text-sm">₹{Number(exp.amount).toLocaleString()}</p>
                 <p className="text-xs text-gray-500">{exp.category} · {exp.date}</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: exp.creator_color || '#6b7280' }} />
+                  {exp.creator_name || 'Someone'}
+                </p>
                 {exp.description && <p className="text-xs text-gray-400">{exp.description}</p>}
               </div>
-              <div className="flex gap-2 ml-2">
-                <button onClick={() => startEdit(exp)} className="text-xs text-blue-400">Edit</button>
-                <button onClick={() => handleDelete(exp.id)} className="text-xs text-red-400">Del</button>
-              </div>
+              {(exp.created_by === me?.user.id || group?.member_role === 'owner') && (
+                <div className="flex gap-2 ml-2">
+                  <button onClick={() => startEdit(exp)} className="text-xs text-blue-400">Edit</button>
+                  <button onClick={() => handleDelete(exp.id)} className="text-xs text-red-400">Del</button>
+                </div>
+              )}
             </div>
           ))}
         </div>

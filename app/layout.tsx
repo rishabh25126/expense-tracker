@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import QueryProvider from '@/components/QueryProvider';
+import NotificationsPanel from '@/components/NotificationsPanel';
 
 export const metadata: Metadata = {
   title: 'ExpenseAI',
@@ -21,7 +22,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="bg-gray-950 text-gray-100 antialiased overflow-x-hidden w-full relative">
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          {children}
+          <NotificationsPanel />
+        </QueryProvider>
       </body>
     </html>
   );

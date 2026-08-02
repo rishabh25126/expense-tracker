@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAuthed, unauth } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
+import { requireGroupMember } from '@/lib/groupAuth';
 import { log } from '@/lib/logger';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -23,12 +24,15 @@ type GroupRow = {
 };
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!await isAuthed()) return unauth();
+  const auth = await requireUser();
+  if ('response' in auth) return auth.response;
 
   const isDigest = req.nextUrl.searchParams.get('type') === 'digest';
 
   try {
     const { id } = await params;
+    const member = await requireGroupMember(id, auth.user.id);
+    if ('response' in member) return member.response;
     const supabase = createAdminClient();
 
     const [{ data: group, error: groupError }, { data: expenses, error: expensesError }] =
@@ -241,4 +245,3 @@ Return ONLY valid JSON of this shape:
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
-

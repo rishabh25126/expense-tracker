@@ -64,8 +64,9 @@ export default function GroupStatsPage() {
     <div className="min-h-screen p-4 max-w-lg mx-auto">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-bold">Stats</h1>
-        <div className="flex gap-2">
-          {group?.prev_period_start && (
+        {group?.member_role === 'owner' && (
+          <div className="flex gap-2">
+            {group?.prev_period_start && (
             <button
               onClick={() => { if (confirm('Undo start period?')) undoPeriod.mutate(); }}
               disabled={undoPeriod.isPending}
@@ -73,15 +74,16 @@ export default function GroupStatsPage() {
             >
               Undo
             </button>
-          )}
-          <button
-            onClick={() => { if (confirm('Start a new period? This will reset your current period stats.')) startPeriod.mutate(); }}
-            disabled={startPeriod.isPending}
-            className="text-xs px-3 py-1.5 rounded bg-white text-gray-900 font-medium disabled:opacity-50"
-          >
-            Start New Period
-          </button>
-        </div>
+            )}
+            <button
+              onClick={() => { if (confirm('Start a new period? This will reset your current period stats.')) startPeriod.mutate(); }}
+              disabled={startPeriod.isPending}
+              className="text-xs px-3 py-1.5 rounded bg-white text-gray-900 font-medium disabled:opacity-50"
+            >
+              Start New Period
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-3 mb-8 text-center">

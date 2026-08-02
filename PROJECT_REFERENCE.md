@@ -35,18 +35,40 @@ Target: expense logged in under 3 seconds.
 
 ## Database Schema
 
-### Table: `users`
+### Table: `profiles`
+| Column | Type |
+|---|---|
+| id | uuid (PK → auth.users.id) |
+| email | text |
+| full_name | text |
+| color | text |
+| created_at / updated_at | timestamptz |
+
+### Table: `groups`
 | Column | Type |
 |---|---|
 | id | uuid (PK) |
-| email | text |
-| created_at | timestamptz |
+| name | text |
+| join_code | text unique |
+| password_hash | text |
+| created_by | uuid (FK → profiles.id) |
+| period_start / prev_period_start | date |
+
+### Table: `group_members`
+| Column | Type |
+|---|---|
+| group_id | uuid (FK → groups.id) |
+| user_id | uuid (FK → profiles.id) |
+| role | owner / member |
+| app_notifications_enabled | boolean |
+| push_notifications_enabled | boolean |
 
 ### Table: `expenses`
 | Column | Type |
 |---|---|
 | id | uuid (PK) |
-| user_id | uuid (FK → users.id) |
+| group_id | uuid (FK → groups.id) |
+| created_by | uuid (FK → profiles.id) |
 | amount | numeric |
 | category | text |
 | description | text |
@@ -57,8 +79,28 @@ Target: expense logged in under 3 seconds.
 | Column | Type |
 |---|---|
 | id | uuid (PK) |
-| user_id | uuid (FK → users.id) |
+| group_id | uuid (FK → groups.id) |
+| created_by | uuid (FK → profiles.id) |
 | name | text |
+
+### Table: `notifications`
+| Column | Type |
+|---|---|
+| id | uuid (PK) |
+| group_id | uuid (FK → groups.id) |
+| recipient_id / actor_id | uuid (FK → profiles.id) |
+| expense_id | uuid (FK → expenses.id) |
+| title / body / url | text |
+| read_at / created_at | timestamptz |
+
+### Table: `push_subscriptions`
+| Column | Type |
+|---|---|
+| id | uuid (PK) |
+| user_id | uuid (FK → profiles.id) |
+| device_id / endpoint | text |
+| subscription | jsonb |
+| enabled | boolean |
 
 **Default categories:** Food, Travel, Rent, Shopping, Bills, Other
 
@@ -240,6 +282,18 @@ Target: expense logged in under 3 seconds.
 - [x] Route performs a lightweight read-only Supabase `groups` table reachability check
 - [x] Purpose: reduce Free Plan inactivity pause risk for this personal app
 
+### Phase 22 — Multi-User Auth, Group Membership & Notifications ✅ COMPLETED
+- [x] Replaced shared `app_session` login with Supabase Auth sessions via `@supabase/ssr`
+- [x] Login supports email/password, open signup, and Google OAuth callback
+- [x] Added `/profile` page for display name, password update, transaction color, and push notification toggle
+- [x] Profiles get a random transaction color at creation and users can change it later
+- [x] Groups are password protected with server-hashed passwords and shareable join codes
+- [x] Added `group_members` authorization model with owner/member roles
+- [x] Expenses store `created_by` and list creator first name only with creator color coding
+- [x] Added in-app notifications and app-open toast for expenses added by other group members
+- [x] Added optional PWA push notifications via `push_subscriptions`, `web-push`, and custom worker
+- [x] Email notifications intentionally deferred; no email provider added
+
 ---
 
 ## Environment Variables Required
@@ -249,9 +303,10 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ANTHROPIC_API_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-APP_USERNAME=
-APP_PASSWORD=
 CRON_SECRET=
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=
 ```
 
 ---
