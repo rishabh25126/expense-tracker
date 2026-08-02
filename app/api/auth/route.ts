@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { ensureProfile } from '@/lib/profile';
 import { log } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
   try {
-    const { username, password } = await req.json() as { username: string; password: string };
-    if (username !== process.env.APP_USERNAME || password !== process.env.APP_PASSWORD) {
-      await log('WARN', 'Failed login attempt', { username });
+    const { email, password } = await req.json() as { email: string; password: string };
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.user) {
+      await log('WARN', 'Failed login attempt', { email });
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
-    await log('INFO', 'Login successful', { username });
-    const res = NextResponse.json({ ok: true });
-    res.cookies.set('app_session', '1', { httpOnly: true, maxAge: 60 * 60 * 24 * 30, path: '/' });
-    return res;
+    await ensureProfile(data.user);
+    await log('INFO', 'Login successful', { user_id: data.user.id });
+    return NextResponse.json({ ok: true });
   } catch (e) {
     await log('ERROR', 'auth POST crashed', { error: String(e) });
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
@@ -20,9 +23,10 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   try {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
     await log('INFO', 'Logout');
     const res = NextResponse.json({ ok: true });
-    res.cookies.delete('app_session');
     res.cookies.delete('last_group');
     return res;
   } catch (e) {

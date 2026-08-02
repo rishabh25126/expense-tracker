@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireUser } from '@/lib/auth';
 import { log } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser();
+  if ('response' in auth) return auth.response;
+
   try {
     const { level, message, metadata } = await req.json();
     if (!level || !message) {

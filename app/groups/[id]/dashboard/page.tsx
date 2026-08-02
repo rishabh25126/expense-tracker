@@ -186,13 +186,17 @@ export default function GroupDashboardPage() {
                   .sort((a, b) => Number(b.amount) - Number(a.amount))
                   .slice(0, 5)
                   .map((e, i) => (
-                    <div key={e.id} className={`flex justify-between items-start text-sm p-2 rounded ${i === 0 ? 'border-l-2 border-indigo-500 bg-gray-900' : ''}`}>
+                    <div
+                      key={e.id}
+                      className={`flex justify-between items-start text-sm p-2 rounded ${i === 0 ? 'bg-gray-900' : ''}`}
+                      style={{ borderLeft: `3px solid ${e.creator_color || '#6b7280'}` }}
+                    >
                       <div className="flex gap-2 items-start min-w-0">
                         <span className="text-gray-500 text-xs mt-0.5">{i + 1}</span>
                         <div className="min-w-0">
                           <span className="text-gray-400 text-xs">{e.category}</span>
                           {e.description && <p className="text-gray-500 text-xs truncate">{e.description}</p>}
-                          <p className="text-gray-600 text-xs">{e.date}</p>
+                          <p className="text-gray-600 text-xs">{e.creator_name || 'Someone'} · {e.date}</p>
                         </div>
                       </div>
                       <span className="font-bold whitespace-nowrap ml-2">₹{Number(e.amount).toLocaleString()}</span>
@@ -215,10 +219,11 @@ export default function GroupDashboardPage() {
         ) : (
           <div className="space-y-2">
             {recent.map(e => (
-              <div key={e.id} className="flex justify-between text-sm border-b border-gray-800 pb-2">
+              <div key={e.id} className="flex justify-between text-sm border-b border-gray-800 pb-2 pl-2" style={{ borderLeft: `3px solid ${e.creator_color || '#6b7280'}` }}>
                 <div>
                   <span className="text-gray-400">{e.category}</span>
                   {e.description && <span className="text-gray-500 ml-2 text-xs">· {e.description}</span>}
+                  <p className="text-gray-600 text-xs">{e.creator_name || 'Someone'}</p>
                 </div>
                 <span className="font-medium">₹{Number(e.amount).toLocaleString()}</span>
               </div>

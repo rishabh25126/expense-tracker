@@ -1,9 +1,22 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import type { User } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
+
+export async function getCurrentUser(): Promise<User | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user;
+}
 
 export async function isAuthed(): Promise<boolean> {
-  const store = await cookies();
-  return store.get('app_session')?.value === '1';
+  return Boolean(await getCurrentUser());
+}
+
+export async function requireUser(): Promise<{ user: User; response?: never } | { user?: never; response: NextResponse }> {
+  const user = await getCurrentUser();
+  if (!user) return { response: unauth() };
+  return { user };
 }
 
 export function unauth() {

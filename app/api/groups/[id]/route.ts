@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAuthed, unauth } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
+import { requireGroupMember, requireGroupOwner } from '@/lib/groupAuth';
 import { log } from '@/lib/logger';
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!await isAuthed()) return unauth();
+  const auth = await requireUser();
+  if ('response' in auth) return auth.response;
   try {
     const { id } = await params;
+    const member = await requireGroupMember(id, auth.user.id);
+    if ('response' in member) return member.response;
     const supabase = createAdminClient();
     const { data, error } = await supabase.from('groups').select('*').eq('id', id).single();
     if (error) { await log('ERROR', 'group GET failed', { id, error: error.message }); return NextResponse.json({ error: error.message }, { status: 404 }); }
-    return NextResponse.json(data);
+    return NextResponse.json({ ...data, member_role: member.membership.role });
   } catch (e) {
     await log('ERROR', 'group GET crashed', { error: String(e) });
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
@@ -20,9 +24,12 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 // PATCH action=start_period: saves current period_start as prev, sets period_start=today
 // PATCH action=undo_period: restores prev_period_start
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!await isAuthed()) return unauth();
+  const auth = await requireUser();
+  if ('response' in auth) return auth.response;
   try {
     const { id } = await params;
+    const owner = await requireGroupOwner(id, auth.user.id);
+    if ('response' in owner) return owner.response;
     const body = await req.json() as { action: string; name?: string };
     const { action, name } = body;
     const supabase = createAdminClient();
@@ -76,9 +83,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!await isAuthed()) return unauth();
+  const auth = await requireUser();
+  if ('response' in auth) return auth.response;
   try {
     const { id } = await params;
+    const owner = await requireGroupOwner(id, auth.user.id);
+    if ('response' in owner) return owner.response;
     const supabase = createAdminClient();
     const { error } = await supabase.from('groups').delete().eq('id', id);
     if (error) { await log('ERROR', 'group DELETE failed', { id, error: error.message }); return NextResponse.json({ error: error.message }, { status: 500 }); }
