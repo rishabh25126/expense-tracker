@@ -132,7 +132,7 @@ export default function GroupAddPage() {
 
   const handleTranscript = async (text: string) => {
     setError('');
-    parseExpense.mutate(text, {
+    await parseExpense.mutateAsync(text, {
       onSuccess: (parsed) => {
         setForm(f => ({
           amount: parsed.amount != null ? String(parsed.amount) : f.amount,

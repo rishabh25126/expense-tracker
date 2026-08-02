@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 
 type Props = {
-  onTranscript: (text: string) => void;
+  onTranscript: (text: string) => void | Promise<void>;
   disabled?: boolean;
 };
 
@@ -39,20 +39,36 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
   } = useSpeechRecognition();
 
   const lastProcessedRef = useRef('');
+  const processingTranscriptRef = useRef(false);
+
+  useEffect(() => {
+    if (!disabled || !listening) return;
+    SpeechRecognition.abortListening();
+    clientLog('info', 'Mic aborted while input disabled');
+  }, [disabled, listening, clientLog]);
 
   // Safety to ensure we don't listen forever and we pass transcript
   useEffect(() => {
-    if (!listening && transcript && transcript !== lastProcessedRef.current) {
-      lastProcessedRef.current = transcript;
-      clientLog('info', 'Mic stopped recording', { transcript });
-      onTranscript(transcript);
-      resetTranscript();
-      // small delay to reset the ref so subsequent matching inputs aren't ignored
-      setTimeout(() => { lastProcessedRef.current = ''; }, 1000);
+    if (listening || !transcript || transcript === lastProcessedRef.current || processingTranscriptRef.current) {
+      return;
     }
+
+    processingTranscriptRef.current = true;
+    lastProcessedRef.current = transcript;
+    SpeechRecognition.abortListening();
+    clientLog('info', 'Mic stopped recording', { transcript });
+
+    Promise.resolve(onTranscript(transcript))
+      .finally(() => {
+        resetTranscript();
+        processingTranscriptRef.current = false;
+        // small delay to reset the ref so subsequent matching inputs aren't ignored
+        setTimeout(() => { lastProcessedRef.current = ''; }, 1000);
+      });
   }, [listening, transcript, onTranscript, resetTranscript, clientLog]);
 
   const start = useCallback(() => {
+    if (disabled) return;
     if (!browserSupportsSpeechRecognition) {
       alert('Voice not supported in this browser');
       return;
@@ -60,7 +76,7 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
     resetTranscript();
     clientLog('info', 'Mic started recording');
     SpeechRecognition.startListening({ continuous: false, language: 'en-US' });
-  }, [browserSupportsSpeechRecognition, resetTranscript, clientLog]);
+  }, [browserSupportsSpeechRecognition, disabled, resetTranscript, clientLog]);
 
   const stop = useCallback(() => {
     SpeechRecognition.stopListening();

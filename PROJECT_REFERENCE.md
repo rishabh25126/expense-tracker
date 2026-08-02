@@ -230,6 +230,7 @@ Target: expense logged in under 3 seconds.
 - [x] Hidden route `/logs` dynamically fetches events and supports filtering via URL Query params.
 - [x] End-to-End telemetry for voice flow (start/stop recording, parsing raw chunks, and AI success/failure states)
 - [x] Replaced native Web Speech API handling with `react-speech-recognition` to eliminate iOS Safari abort bugs and deduplicate strict-mode tracking variables.
+- [x] Force-stop microphone access before starting AI parsing so the phone mic is not kept active while `/api/parse-expense` is in flight
 
 ### Phase 21 — Supabase Keepalive Cron ✅ COMPLETED
 - [x] Added `vercel.json` daily cron schedule (`30 3 * * *`)

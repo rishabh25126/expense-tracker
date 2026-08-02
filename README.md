@@ -50,6 +50,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 ### AI Integration
 - `/api/parse-expense` sends voice transcript to Claude Haiku
 - Returns structured `{ amount, category, date, description }`
+- `VoiceInput` force-stops speech recognition before parsing begins so the phone mic is not left active during AI parsing
 - `/api/groups/[id]/insights` aggregates spending data, Claude generates plain-text insights
 
 ### Scheduled Keepalive
