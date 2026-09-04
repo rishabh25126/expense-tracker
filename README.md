@@ -14,11 +14,12 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 | Auth | Simple cookie-based (`app_session`, HttpOnly) |
 | Hosting | Vercel |
 | Data Layer | React Query (`@tanstack/react-query`) |
+| Calculator Math | `big.js` decimal arithmetic |
 
 ## Features
 
 - Voice expense entry with AI parsing (amount, category, date, description)
-- Manual expense form with category selection
+- Manual expense form with category selection and an amount-field calculator
 - Multi-group trackers (fully isolated expenses, categories per group)
 - Custom period system (not calendar-based) with undo support
 - Dashboard with today/period totals, category breakdown, AI spending insights
@@ -98,6 +99,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 | `lib/offlineQueue.ts` | localStorage offline expense queue |
 | `components/GroupNav.tsx` | Bottom nav for group pages |
 | `components/VoiceInput.tsx` | Voice input with offline detection |
+| `components/AmountCalculator.tsx` | Bottom-sheet amount calculator using decimal-safe arithmetic |
 | `components/OnlineIndicator.tsx` | Green/red online status dot |
 | `vercel.json` | Daily Vercel Cron schedule |
 | `supabase/schema.sql` | Database schema |

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import VoiceInput from '@/components/VoiceInput';
 import GroupNav from '@/components/GroupNav';
 import OnlineIndicator from '@/components/OnlineIndicator';
+import AmountCalculator from '@/components/AmountCalculator';
 import type { ParsedExpense, Category, Group, Expense } from '@/types';
 import { queryKeys } from '@/lib/queryKeys';
 import { enqueue, pendingCount, getQueue, dequeue } from '@/lib/offlineQueue';
@@ -184,12 +185,18 @@ export default function GroupAddPage() {
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="text-xs text-gray-500 uppercase tracking-wide">Amount *</label>
-          <input
-            type="number" step="0.01" value={form.amount}
-            onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-            placeholder="0" required
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+          <div className="relative mt-1">
+            <input
+              type="number" step="0.01" value={form.amount}
+              onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+              placeholder="0" required
+              className="w-full bg-gray-800 border border-gray-700 rounded py-2 pl-3 pr-16 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <AmountCalculator
+              value={form.amount}
+              onAmountChange={amount => setForm(f => ({ ...f, amount }))}
+            />
+          </div>
         </div>
         <div>
           <label className="text-xs text-gray-500 uppercase tracking-wide">Category</label>

@@ -26,6 +26,7 @@ Target: expense logged in under 3 seconds.
 | Auth | Supabase Auth |
 | Hosting | Vercel (free tier) |
 | SDK | `@anthropic-ai/sdk` |
+| Amount Calculator | `big.js` decimal arithmetic + custom React keypad |
 
 **AI Model Strategy:**
 - Development/testing: `claude-sonnet-4-6`
@@ -240,6 +241,13 @@ Target: expense logged in under 3 seconds.
 - [x] Route performs a lightweight read-only Supabase `groups` table reachability check
 - [x] Purpose: reduce Free Plan inactivity pause risk for this personal app
 
+### Phase 22 — Amount Calculator ✅ COMPLETED
+- [x] Added `components/AmountCalculator.tsx` bottom-sheet calculator for manual entry
+- [x] Amount field on `/groups/[id]/add` has a right-side calculator trigger
+- [x] Supports decimal entry and basic operations: add, subtract, multiply, divide
+- [x] "Use" writes the computed INR amount back into the Amount field
+- [x] Uses `big.js` decimal arithmetic instead of expression evaluation
+
 ---
 
 ## Environment Variables Required
@@ -336,6 +344,7 @@ expenseTrackingApp/
 │   │       └── categories/page.tsx
 ├── components/
 │   ├── VoiceInput.tsx             # Voice input with offline detection
+│   ├── AmountCalculator.tsx       # Amount input calculator using big.js
 │   ├── GroupNav.tsx               # Bottom nav for group pages
 │   ├── OnlineIndicator.tsx        # Green/red online status dot
 │   ├── FeedbackButton.tsx
@@ -470,3 +479,4 @@ CREATE POLICY "Users access own categories" ON categories
 19. Advanced analytics & visualizations (recharts, pie, trend line, heatmap, comparison, digest)
 20. System Logging (app logs via hidden /logs UI using GET search queries)
 21. Supabase keepalive cron (daily Vercel Cron + protected read-only DB check)
+22. Amount calculator for manual expense entry
