@@ -13,6 +13,7 @@
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.1",
     "@tanstack/react-query": "^5.90.21",
+    "big.js": "^7.0.1",
     "next": "^15.5.12",
     "next-pwa": "^5.6.0",
     "react": "^19.0.0",
@@ -22,6 +23,7 @@
     "regenerator-runtime": "^0.14.1"
   },
   "devDependencies": {
+    "@types/big.js": "^7.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
