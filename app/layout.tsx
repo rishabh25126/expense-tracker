@@ -6,7 +6,13 @@ export const metadata: Metadata = {
   title: 'ExpenseAI',
   description: 'Log expenses by voice in under 3 seconds',
   manifest: '/manifest.json',
-  icons: { icon: '/icons/icon-192x192.png', apple: '/icons/icon-192x192.png' },
+  icons: {
+    icon: [
+      { url: '/icons/expenseai.svg', type: 'image/svg+xml' },
+      { url: '/icons/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'ExpenseAI' },
 };
 

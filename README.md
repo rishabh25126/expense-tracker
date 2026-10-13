@@ -31,6 +31,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 - Offline support: online/offline indicator, voice disabled when offline, offline expense queue with auto-sync
 - Daily Vercel Cron keepalive that performs a lightweight Supabase read for Free Plan inactivity protection
 - PWA installable on mobile
+- Emerald INR favicon and matching Apple/PWA install icons
 - Responsive dark workspace UI with safe-area navigation, accessible forms, and reduced-motion support
 - Icon-only mobile navigation with larger tap targets and a centered, vertically aligned emerald Add action; labeled side navigation on larger screens
 - Default categories have dedicated icons; each custom category stores a selectable icon that appears beside expense rows (icons may be reused)
@@ -122,6 +123,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 | `components/CategoryIcon.tsx`, `components/CategoryIconPicker.tsx` | Shared icon display and custom-category picker |
 | `components/VoiceInput.tsx` | Voice input with offline detection |
 | `components/AmountCalculator.tsx` | Bottom-sheet amount calculator using decimal-safe arithmetic |
+| `public/icons/expenseai.svg`, `public/icons/*.png` | Favicon source and sized browser, Apple, and PWA icons |
 | `components/OnlineIndicator.tsx` | Green/red online status dot |
 | `vercel.json` | Daily Vercel Cron schedule |
 | `supabase/schema.sql` | Destructive fresh-database schema (drops tables) |
