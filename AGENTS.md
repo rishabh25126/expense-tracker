@@ -34,3 +34,5 @@ This is a voice-first expense tracking PWA built with Next.js 15, strict TypeScr
 - Period filtering is client-side (not in SQL queries)
 - Offline expenses queued in localStorage, auto-synced on reconnect
 - Default categories have dedicated icons. Custom category icons are stored in `categories.icon`; apply `supabase/migrations/20261014_add_category_icon.sql` on an existing database before using icon selection. Never rerun the destructive `supabase/schema.sql` on existing data.
+- Voice input uses one native Web Speech recognizer per recording. Completed recordings call `stop()` and wait for `onend`; cancellation, offline, page hide, and unmount call `abort()`. The startup and end-event watchdogs recover stalled browser sessions. A real iPhone check is still needed for the microphone indicator.
+- The selected Voice app icon source is `public/icons/voice.svg`; generated browser, iOS, and PWA icons are in `public/icons/`.
