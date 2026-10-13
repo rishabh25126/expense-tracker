@@ -275,11 +275,6 @@ The server accesses Supabase with the service-role key. `supabase/schema.sql` di
 - [x] Verify build and simulated speech lifecycle plus responsive navigation in Playwright; physical iPhone microphone-indicator verification remains device-dependent
 - [x] Save the verified mobile Add Expense screenshot at `docs/ui/mobile-add-final.png`
 
-### Phase 26 — ExpenseAI App Icon ✅ COMPLETED
-- [x] Replace the old icon with an emerald INR mark in `public/icons/expenseai.svg`
-- [x] Export correctly sized 32px favicon, 180px Apple touch, and 192px/512px PWA icons from the same vector
-- [x] Point Next metadata to the SVG favicon and Apple touch icon; match manifest colors to the dark app theme
-
 ---
 
 ## Environment Variables Required
@@ -306,8 +301,8 @@ CRON_SECRET=
   "description": "Log expenses by voice in under 3 seconds",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0d1410",
-  "theme_color": "#0d1410",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
   "icons": [
     { "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png" }
@@ -315,7 +310,7 @@ CRON_SECRET=
 }
 ```
 
-**`next.config.ts`** wraps the Next config with `next-pwa`, registers the service worker, and disables it in development. The manifest provides 192px and 512px install icons; `app/layout.tsx` advertises the SVG favicon, 32px fallback, and 180px Apple touch icon. There is no custom install banner.
+**`next.config.ts`** wraps the Next config with `next-pwa`, registers the service worker, and disables it in development. The manifest and app metadata supply install icons. There is no custom install banner.
 
 ---
 
@@ -384,7 +379,6 @@ expenseTrackingApp/
 ├── supabase/migrations/
 │   └── 20261014_add_category_icon.sql # Additive migration for existing databases
 ├── supabase/schema.sql            # Destructive fresh-database schema
-├── public/icons/                  # SVG favicon source and generated PNG sizes
 ├── types/
 │   └── index.ts
 ├── vercel.json                    # Daily Supabase keepalive cron
@@ -471,4 +465,3 @@ type Category = {
 23. Responsive UI design system, category icons, and browser verification
 24. Persistent tracker navigation, shared query refresh, and microphone cleanup
 25. Native voice lifecycle and mobile icon controls
-26. ExpenseAI favicon and PWA icon refresh
