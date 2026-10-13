@@ -1,7 +1,6 @@
 # AI Voice Expense Manager — Build Reference
 
-> This file is the single source of truth for building the app step by step.
-> Claude must always read and follow this file before generating any code or making decisions.
+> Current architecture and phase history for the app. Early phases record the original build; Phase 8 replaced user-scoped Supabase Auth with the current single-user, tracker-scoped model. Check current architecture below before using older phase notes.
 
 ---
 
@@ -23,31 +22,32 @@ Target: expense logged in under 3 seconds.
 | AI Parsing | Anthropic Claude API (claude-haiku-4-5 at runtime) |
 | Backend | Next.js API Routes (TypeScript) |
 | Database | Supabase (PostgreSQL, free tier) |
-| Auth | Supabase Auth |
+| Auth | Single-user `app_session` cookie; username/password from environment variables |
 | Hosting | Vercel (free tier) |
 | SDK | `@anthropic-ai/sdk` |
 | Amount Calculator | `big.js` decimal arithmetic + custom React keypad |
+| UI | React Query data cache, `motion` transitions, responsive dark workspace |
 
-**AI Model Strategy:**
-- Development/testing: `claude-sonnet-4-6`
-- Runtime expense parsing (production): `claude-haiku-4-5-20251001` (cheaper, faster)
+**Runtime AI model:** `claude-haiku-4-5-20251001` for expense parsing and spending insights, as configured in the API routes.
 
 ---
 
 ## Database Schema
 
-### Table: `users`
+### Table: `groups`
 | Column | Type |
 |---|---|
 | id | uuid (PK) |
-| email | text |
+| name | text |
+| period_start | date |
+| prev_period_start | date, nullable |
 | created_at | timestamptz |
 
 ### Table: `expenses`
 | Column | Type |
 |---|---|
 | id | uuid (PK) |
-| user_id | uuid (FK → users.id) |
+| group_id | uuid (FK → groups.id) |
 | amount | numeric |
 | category | text |
 | description | text |
@@ -58,8 +58,9 @@ Target: expense logged in under 3 seconds.
 | Column | Type |
 |---|---|
 | id | uuid (PK) |
-| user_id | uuid (FK → users.id) |
+| group_id | uuid (FK → groups.id) |
 | name | text |
+| icon | text, nullable; existing categories show initials until an icon is chosen |
 
 **Default categories:** Food, Travel, Rent, Shopping, Bills, Other
 
@@ -71,6 +72,8 @@ Target: expense logged in under 3 seconds.
 | message | text |
 | metadata | jsonb |
 | created_at | timestamptz |
+
+The server accesses Supabase with the service-role key. `supabase/schema.sql` disables RLS and **drops tables before creating them**; run it only for a new database. For an existing database, apply the additive `supabase/migrations/20261014_add_category_icon.sql` to enable icon saving. The migration is versioned in the repo; this document does not assert that it has been applied to a live project.
 ---
 
 ## MVP Features (Build in this order)
@@ -82,9 +85,9 @@ Target: expense logged in under 3 seconds.
 - [x] Configure `next.config.ts` with `next-pwa`
 - [x] Create `public/manifest.json`
 - [x] Add PWA meta tags in `app/layout.tsx`
-- [x] Configure `.env.local` template
-- [x] Supabase schema SQL + RLS policies (`supabase/schema.sql`)
-- [x] Login/signup pages + middleware auth guard
+- [x] Configure environment-based Supabase and app credentials
+- [x] Supabase schema SQL (`supabase/schema.sql`); current schema uses a service-role client without RLS
+- [x] Login page + middleware auth guard (no signup flow)
 
 ### Phase 2 — AI Parsing API ✅ COMPLETED (commit: 1d4ad96)
 - [x] `/api/parse-expense` POST route
@@ -102,26 +105,26 @@ Target: expense logged in under 3 seconds.
 ### Phase 4 — Expense Entry ✅ COMPLETED (commit: 3390ffc)
 - [x] `/add` page: voice entry → parse → pre-fill form → save
 - [x] Manual entry form: amount, category, date, description
-- [x] POST to `/api/expenses`, redirects to `/expenses`
+- [x] POST to `/api/groups/[id]/expenses` from `/groups/[id]/add`
 - [x] Amount required validation, date defaults to today
 
 ### Phase 5 — Expense List ✅ COMPLETED (commit: 3390ffc)
-- [x] `/expenses` page fetches all user expenses
+- [x] `/groups/[id]/expenses` fetches expenses for the active tracker
 - [x] Shows amount, category, date, description
 - [x] Edit modal (PATCH), Delete with confirm
 - [x] Filter by category (pill buttons)
-- [x] Filter by date range (from/to)
+- [x] Filter by current period or all time
 
 ### Phase 6 — Dashboard ✅ COMPLETED (commit: 3390ffc)
 - [x] Today's total spending
-- [x] This month's total spending
-- [x] Category breakdown for current month
+- [x] Current-period total spending
+- [x] Category breakdown for the current period
 - [x] Recent 5 expenses
 
 ### Phase 7 — Category Management ✅ COMPLETED (commit: 3390ffc)
-- [x] `/categories` page lists defaults + custom
-- [x] Create custom category (POST `/api/categories`)
-- [x] Delete custom category (DELETE `/api/categories/[id]`)
+- [x] `/groups/[id]/categories` lists defaults + tracker-specific custom categories
+- [x] Create custom category (POST `/api/groups/[id]/categories`)
+- [x] Delete custom category (DELETE `/api/groups/[id]/categories/[cid]`)
 
 ### Phase 8 — Auth + Groups + Stats ✅ COMPLETED (commit: fe75dda)
 > Cookie-based auth, multi-group trackers, custom periods, stats with charts.
@@ -149,11 +152,9 @@ Target: expense logged in under 3 seconds.
 - [x] All views default to current period; toggle to "All time" available
 
 **Stats (`/groups/[id]/stats`):**
-- [x] Daily spending bar chart (current period, up to last 14 days)
-- [x] Category breakdown current vs previous period (CSS horizontal bars)
-- [x] Period totals comparison
+- [x] Period controls, initial statistics, and chart views (later redesigned in Phases 19 and 23)
 
-**Schema — run `supabase/schema.sql` in Supabase SQL editor**
+**Schema:** `supabase/schema.sql` is for a fresh database only; it drops existing tables. Apply additive migrations to existing databases.
 
 **New env vars needed:** `APP_USERNAME`, `APP_PASSWORD`, `SUPABASE_SERVICE_ROLE_KEY`
 (get service role key from Supabase dashboard → Settings → API)
@@ -177,7 +178,7 @@ Target: expense logged in under 3 seconds.
 - [x] Test production voice input (HTTPS via Vercel)
 
 ### Phase 12 — Data Layer & Prefetch ✅ COMPLETED
-- [x] Integrate React Query across groups/expenses/categories/auth/feedback
+- [x] Integrate React Query across groups, expenses, categories, and insights
 - [x] Wrap app with a shared `QueryClientProvider`
 - [x] Prefetch group, expenses, and categories in parallel when landing on the Add tab
 - [x] Replace `useEffect + fetch` with `useQuery` / `useMutation` and cache invalidation
@@ -220,7 +221,7 @@ Target: expense logged in under 3 seconds.
 - [x] **Dashboard**: Top 5 biggest spends in current period (ranked list)
 - [x] **Dashboard**: Weekly AI digest (Claude Haiku, 2-3 sentence weekly summary via `?type=digest`)
 - [x] **Stats**: Monthly trend line (12 months, recharts LineChart, replaces old CSS MonthlyBars)
-- [x] **Stats**: Spending heatmap (90-day CSS calendar grid, indigo opacity scaled by amount)
+- [x] **Stats**: Recharts category bars for the current period
 - [x] **Stats**: Period comparison grouped bars (recharts BarChart, current vs previous side-by-side)
 - [x] Removed orphaned HBar + MonthlyBars components from stats page
 - [x] Removed empty leftover directories (app/auth, app/expenses, app/dashboard, etc.)
@@ -247,6 +248,24 @@ Target: expense logged in under 3 seconds.
 - [x] Supports decimal entry and basic operations: add, subtract, multiply, divide
 - [x] "Use" writes the computed INR amount back into the Amount field
 - [x] Uses `big.js` decimal arithmetic instead of expression evaluation
+
+### Phase 23 — Responsive UI Design System ✅ COMPLETED
+- [x] Supabase and Notion inspired dark workspace with emerald actions, readable surfaces, and shared UI tokens
+- [x] Responsive safe-area mobile navigation with a centered circular Add action, and desktop side navigation
+- [x] Accessible labels, focus states, live status messages, zoom support, and reduced-motion support
+- [x] `motion` transitions for navigation and sheets; shared INR and date formatting in `lib/format.ts`
+- [x] Cleanup for expense status timers, feedback timeout, speech recognition, and offline sync state after unmount
+- [x] Production build, lint, Taste Skill audit, and Playwright responsive interaction checks
+- [x] Dedicated default-category icons and selectable per-category icons for new and existing custom categories (choices may repeat)
+- [x] Additive `categories.icon` migration in `supabase/migrations/20261014_add_category_icon.sql` (apply to existing databases before using icon selection)
+
+### Phase 24 — Navigation, Data Refresh & Microphone Cleanup ✅ COMPLETED
+- [x] Keep tracker navigation mounted in `app/groups/[id]/layout.tsx`, with a route loading state and section-level Stats skeletons
+- [x] Share checked group, expense, and category queries with a 30-second stale window; preserve cached content during refresh
+- [x] After an expense save or offline sync, refresh groups, tracker, expenses, and categories; invalidate on-demand insights and digest without automatically calling AI endpoints
+- [x] Abort Web Speech recognition on Stop, disable/offline, timeout, and unmount so the mic session closes promptly
+- [x] Add spacing between Dashboard Top spends and Recent expenses
+- [x] Build, lint, delayed-API browser interactions, responsive spacing, and simulated recognition cleanup checks
 
 ---
 
@@ -283,46 +302,13 @@ CRON_SECRET=
 }
 ```
 
-**`next.config.ts`** PWA setup:
-```typescript
-import withPWA from 'next-pwa';
-
-const config = withPWA({
-  dest: 'public',
-  disable: process.env.NODE_ENV === 'development',
-});
-
-export default config;
-```
-
-**PWA install prompt:** Show "Add to Home Screen" banner on mobile for native-like experience.
+**`next.config.ts`** wraps the Next config with `next-pwa`, registers the service worker, and disables it in development. The manifest and app metadata supply install icons. There is no custom install banner.
 
 ---
 
-## AI Parsing Prompt Template
+## AI Parsing Contract
 
-```
-You are an expense parser. Extract structured data from the user's input.
-
-User input: "{raw_text}"
-
-Return ONLY valid JSON with these fields:
-{
-  "amount": number or null,
-  "category": one of [Food, Travel, Rent, Shopping, Bills, Other] or null,
-  "date": ISO date string (YYYY-MM-DD) or null (null means today),
-  "description": short string summarizing the expense
-}
-
-Rules:
-- "yesterday" → calculate actual date
-- "coffee" → category: Food
-- "uber", "fuel", "petrol" → category: Travel
-- "rent" → category: Rent
-- "electricity", "internet", "bill" → category: Bills
-- If amount is missing, return null for amount
-- Never return extra text, only JSON
-```
+`POST /api/parse-expense` receives `{ text, categories }`. It sends the current date and available default plus custom categories to Claude and requests JSON with `amount`, `category`, `date`, and `description`. The API returns an error for empty text and asks the model for `null` amount when none is spoken. See the route for the exact prompt; do not duplicate it here.
 
 ---
 
@@ -332,19 +318,25 @@ Rules:
 expenseTrackingApp/
 ├── app/
 │   ├── layout.tsx
+│   ├── globals.css
 │   ├── page.tsx                    # Redirects to last group or /groups
 │   ├── login/page.tsx
 │   ├── groups/
 │   │   ├── page.tsx               # List + create trackers
 │   │   └── [id]/
+│   │       ├── layout.tsx         # Persistent tracker navigation + shared data prefetch
+│   │       ├── loading.tsx        # Route transition skeleton
 │   │       ├── add/page.tsx       # Voice + manual expense entry
 │   │       ├── expenses/page.tsx  # List with filters + CSV export
 │   │       ├── dashboard/page.tsx # Totals + category breakdown + insights
 │   │       ├── stats/page.tsx     # Charts + period controls
 │   │       └── categories/page.tsx
+│   └── logs/page.tsx              # Internal system-log viewer
 ├── components/
 │   ├── VoiceInput.tsx             # Voice input with offline detection
 │   ├── AmountCalculator.tsx       # Amount input calculator using big.js
+│   ├── CategoryIcon.tsx          # Shared category icon and legacy initials
+│   ├── CategoryIconPicker.tsx    # Custom category icon choices
 │   ├── GroupNav.tsx               # Bottom nav for group pages
 │   ├── OnlineIndicator.tsx        # Green/red online status dot
 │   ├── FeedbackButton.tsx
@@ -358,6 +350,8 @@ expenseTrackingApp/
 │   ├── groups/[id]/categories/route.ts
 │   ├── groups/[id]/categories/[cid]/route.ts
 │   ├── groups/[id]/insights/route.ts
+│   ├── feedback/route.ts
+│   ├── logs/route.ts              # Legacy voice telemetry POST
 │   ├── cron/keep-supabase-awake/route.ts
 │   └── parse-expense/route.ts
 ├── lib/
@@ -365,11 +359,18 @@ expenseTrackingApp/
 │   │   ├── client.ts
 │   │   ├── server.ts
 │   │   └── admin.ts              # Service role client (bypasses RLS)
-│   ├── claude.ts
+│   ├── auth.ts
+│   ├── logger.ts
 │   ├── queryKeys.ts              # React Query cache keys
+│   ├── groupQueries.ts           # Shared checked GET queries and mutation refresh
 │   ├── csvExport.ts              # Client-side CSV generation
 │   ├── offlineQueue.ts           # localStorage offline expense queue
-│   └── chartColors.ts            # Shared color palette + recharts theme
+│   ├── chartColors.ts            # Shared color palette + recharts theme
+│   ├── categoryIcons.ts          # Icon choices and default mappings
+│   └── format.ts                 # INR and date display formatting
+├── supabase/migrations/
+│   └── 20261014_add_category_icon.sql # Additive migration for existing databases
+├── supabase/schema.sql            # Destructive fresh-database schema
 ├── types/
 │   └── index.ts
 ├── vercel.json                    # Daily Supabase keepalive cron
@@ -384,10 +385,10 @@ expenseTrackingApp/
 ```typescript
 type Expense = {
   id: string;
-  user_id: string;
+  group_id: string;
   amount: number;
   category: string;
-  description: string;
+  description: string | null;
   date: string; // YYYY-MM-DD
   created_at: string;
 };
@@ -401,47 +402,20 @@ type ParsedExpense = {
 
 type Category = {
   id: string;
-  user_id: string;
+  group_id: string;
   name: string;
+  icon?: string | null;
 };
 ```
 
 ---
 
-## Security Rules
+## Current Security Model
 
-- All API routes must verify the user's Supabase session before any DB operation
-- Never expose `ANTHROPIC_API_KEY` to the client — only call Claude from API routes
-- Use Supabase Row Level Security (RLS) — users can only access their own rows
-- Rate limit `/api/parse-expense` to prevent abuse
-
----
-
-## Supabase RLS Policies (apply to all tables)
-
-```sql
--- expenses table
-ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users access own expenses" ON expenses
-  USING (auth.uid() = user_id);
-
--- categories table
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users access own categories" ON categories
-  USING (auth.uid() = user_id);
-```
-
----
-
-## Cost Estimates (Monthly)
-
-| Service | Cost |
-|---|---|
-| Vercel hosting | $0 |
-| Supabase (free tier) | $0 |
-| Web Speech API | $0 |
-| Claude Haiku (AI parsing) | ~$0.05 |
-| **Total** | **$0 – $0.10** |
+- `/api/auth` compares `APP_USERNAME` and `APP_PASSWORD`, then sets an HttpOnly `app_session=1` cookie for 30 days. Middleware redirects unauthenticated page visits to `/login`.
+- App-facing group, expense, category, feedback, insights, and parse routes call `isAuthed()`. The keepalive route instead requires `CRON_SECRET` and the expected Vercel cron-schedule header. The legacy `/api/logs` POST endpoint is unauthenticated in the current implementation.
+- Server-side database calls use the Supabase service-role key and bypass RLS. The schema disables RLS; this is a single-user app, not a Supabase Auth or multi-user setup.
+- `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` remain server-side environment variables. Do not commit credential files.
 
 ---
 
@@ -476,7 +450,8 @@ CREATE POLICY "Users access own categories" ON categories
 16. Organization & search — planned
 17. Data portability (offline indicator, CSV export)
 18. Offline expense queue & auto-sync
-19. Advanced analytics & visualizations (recharts, pie, trend line, heatmap, comparison, digest)
+19. Advanced analytics & visualizations (recharts pie, trend line, category bars, digest)
 20. System Logging (app logs via hidden /logs UI using GET search queries)
 21. Supabase keepalive cron (daily Vercel Cron + protected read-only DB check)
 22. Amount calculator for manual expense entry
+23. Responsive UI design system, category icons, and browser verification

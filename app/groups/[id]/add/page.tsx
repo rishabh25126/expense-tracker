@@ -1,23 +1,26 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import VoiceInput from '@/components/VoiceInput';
-import GroupNav from '@/components/GroupNav';
 import OnlineIndicator from '@/components/OnlineIndicator';
 import AmountCalculator from '@/components/AmountCalculator';
-import type { ParsedExpense, Category, Group, Expense } from '@/types';
-import { queryKeys } from '@/lib/queryKeys';
+import type { ParsedExpense } from '@/types';
+import { categoriesOptions, refreshGroupData } from '@/lib/groupQueries';
 import { enqueue, pendingCount, getQueue, dequeue } from '@/lib/offlineQueue';
 
 const DEFAULTS = ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
-const TODAY = () => new Date().toISOString().split('T')[0];
+const TODAY = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
 
 export default function GroupAddPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ amount: '', category: 'Food', description: '', date: TODAY() });
+  const [form, setForm] = useState({ amount: '', category: 'Food', description: '', date: '' });
+  useEffect(() => { setForm(current => current.date ? current : { ...current, date: TODAY() }); }, []);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const [queued, setQueued] = useState(false);
@@ -25,25 +28,13 @@ export default function GroupAddPage() {
   const [online, setOnline] = useState(true);
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
-
-  // Prefetch group, expenses, and categories in parallel so Expenses/Dashboard/Stats/Categories tabs load instantly
-  useEffect(() => {
-    if (!id) return;
-    void Promise.all([
-      queryClient.prefetchQuery({
-        queryKey: queryKeys.group(id),
-        queryFn: () => fetch(`/api/groups/${id}`).then(r => r.json()) as Promise<Group>,
-      }),
-      queryClient.prefetchQuery({
-        queryKey: queryKeys.expenses(id),
-        queryFn: () => fetch(`/api/groups/${id}/expenses`).then(r => r.json()) as Promise<Expense[]>,
-      }),
-      queryClient.prefetchQuery({
-        queryKey: queryKeys.categories(id),
-        queryFn: () => fetch(`/api/groups/${id}/categories`).then(r => r.json()) as Promise<Category[]>,
-      }),
-    ]);
-  }, [id, queryClient]);
+  const syncInFlight = useRef(false);
+  const statusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (statusTimer.current) clearTimeout(statusTimer.current); }, []);
+  const clearStatusLater = () => {
+    if (statusTimer.current) clearTimeout(statusTimer.current);
+    statusTimer.current = setTimeout(() => { setSaved(false); setQueued(false); }, 2000);
+  };
 
   // Online/offline tracking + pending count
   useEffect(() => {
@@ -61,10 +52,12 @@ export default function GroupAddPage() {
 
   // Auto-sync queued expenses when back online
   useEffect(() => {
-    if (!online || syncing) return;
+    if (!online || syncInFlight.current) return;
     const queue = getQueue(id);
     if (queue.length === 0) return;
 
+    let cancelled = false;
+    syncInFlight.current = true;
     setSyncing(true);
     (async () => {
       for (const item of queue) {
@@ -80,18 +73,17 @@ export default function GroupAddPage() {
           break;
         }
       }
-      setPending(pendingCount(id));
-      setSyncing(false);
-      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.group(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.insights(id) });
+      syncInFlight.current = false;
+      if (!cancelled) {
+        setPending(pendingCount(id));
+        setSyncing(false);
+      }
+      refreshGroupData(queryClient, id);
     })();
+    return () => { cancelled = true; };
   }, [online]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { data: customCats = [] } = useQuery({
-    queryKey: queryKeys.categories(id),
-    queryFn: () => fetch(`/api/groups/${id}/categories`).then(r => r.json()) as Promise<Category[]>,
-  });
+  const { data: customCats = [] } = useQuery(categoriesOptions(id));
 
   const categories = [...DEFAULTS, ...(Array.isArray(customCats) ? customCats : []).map(c => c.name).filter(n => !DEFAULTS.includes(n))];
 
@@ -120,13 +112,11 @@ export default function GroupAddPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.group(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.insights(id) });
+      refreshGroupData(queryClient, id);
       setSaved(true);
       setForm(f => ({ amount: '', category: f.category, description: '', date: TODAY() }));
       setVoiceKey(k => k + 1);
-      setTimeout(() => setSaved(false), 2000);
+      clearStatusLater();
     },
     onError: () => setError('Failed to save expense'),
   });
@@ -156,7 +146,7 @@ export default function GroupAddPage() {
       setQueued(true);
       setForm(f => ({ amount: '', category: f.category, description: '', date: TODAY() }));
       setVoiceKey(k => k + 1);
-      setTimeout(() => setQueued(false), 2000);
+      clearStatusLater();
       return;
     }
 
@@ -167,30 +157,30 @@ export default function GroupAddPage() {
   const saving = createExpense.isPending;
 
   return (
-    <div className="min-h-screen p-4 max-w-sm mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div id="main-content" className="app-page has-nav narrow">
+      <div className="app-header">
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold">Add Expense</h1>
+          <h1 className="app-title">Add Expense</h1>
           <OnlineIndicator />
         </div>
-        <button onClick={() => router.push('/groups')} className="text-xs text-gray-400">Groups</button>
+        <button onClick={() => router.push('/groups')} className="secondary-action text-sm">Trackers</button>
       </div>
 
-      <div className="flex flex-col items-center mb-6">
-        <p className="text-sm text-gray-500 mb-3">Tap mic and speak your expense</p>
+      <div className="surface mb-5 flex flex-col items-center px-4 py-5 sm:py-9">
         <VoiceInput key={voiceKey} onTranscript={handleTranscript} disabled={parsing || saving} />
-        {parsing && <p className="text-sm text-gray-400 mt-2">Parsing...</p>}
+        <p className="mt-4 text-sm text-gray-400">Tap to add with your voice</p>
+        {parsing && <p aria-live="polite" className="text-sm text-gray-400 mt-2">Understanding expense…</p>}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-xs text-gray-500 uppercase tracking-wide">Amount *</label>
+          <label htmlFor="amount" className="field-label">Amount <span aria-hidden="true">*</span></label>
           <div className="relative mt-1">
             <input
-              type="number" step="0.01" value={form.amount}
+              id="amount" name="amount" type="number" inputMode="decimal" min="0.01" step="0.01" value={form.amount}
               onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-              placeholder="0" required
-              className="w-full bg-gray-800 border border-gray-700 rounded py-2 pl-3 pr-16 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="0.00" required
+              className="field pr-16 text-xl font-semibold"
             />
             <AmountCalculator
               value={form.amount}
@@ -199,44 +189,41 @@ export default function GroupAddPage() {
           </div>
         </div>
         <div>
-          <label className="text-xs text-gray-500 uppercase tracking-wide">Category</label>
-          <select value={form.category}
+          <label htmlFor="category" className="field-label">Category</label>
+          <select id="category" name="category" value={form.category}
             onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="field">
             {categories.map(c => <option key={c}>{c}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-xs text-gray-500 uppercase tracking-wide">Description</label>
-          <input type="text" value={form.description}
+          <label htmlFor="description" className="field-label">Description</label>
+          <input id="description" name="description" type="text" autoComplete="off" value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            placeholder="Optional"
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="What did you spend on?…"
+            className="field"
           />
         </div>
         <div>
-          <label className="text-xs text-gray-500 uppercase tracking-wide">Date</label>
-          <input type="date" value={form.date}
+          <label htmlFor="date" className="field-label">Date</label>
+          <input id="date" name="date" type="date" value={form.date}
             onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-            className="w-full max-w-full box-border appearance-none bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 [&::-webkit-date-and-time-value]:text-gray-100"
+            className="field max-w-full appearance-none [&::-webkit-date-and-time-value]:text-gray-100"
           />
         </div>
-        {error && <p className="text-red-400 text-sm">{error}</p>}
-        {saved && <p className="text-green-400 text-sm">Saved!</p>}
-        {queued && <p className="text-yellow-400 text-sm">Queued!</p>}
+        <p aria-live="polite" className="status-message">{error && <span className="text-red-400">{error}</span>}{saved && <span className="text-emerald-400">Expense saved</span>}{queued && <span className="text-yellow-400">Expense queued for sync</span>}</p>
         {pending > 0 && (
-          <p className="text-xs text-yellow-400">
+          <p aria-live="polite" className="text-sm text-yellow-400">
             {syncing ? 'Syncing...' : `${pending} expense${pending > 1 ? 's' : ''} pending sync`}
           </p>
         )}
         <button type="submit" disabled={saving || !form.amount}
-          className="w-full bg-white text-gray-900 rounded py-2 text-sm font-medium disabled:opacity-40 mt-2">
+          className="primary-action w-full disabled:opacity-40 mt-2">
           {saving ? 'Saving...' : !online ? 'Queue Expense' : 'Save Expense'}
         </button>
       </form>
 
-      <div className="h-14 mb-32" />
-      <GroupNav groupId={id} />
+      <div className="hidden" />
     </div>
   );
 }

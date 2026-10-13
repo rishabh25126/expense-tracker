@@ -28,7 +28,8 @@ CREATE TABLE expenses (
 CREATE TABLE categories (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   group_id uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-  name text NOT NULL
+  name text NOT NULL,
+  icon text
 );
 
 -- No RLS needed — server uses service role key
