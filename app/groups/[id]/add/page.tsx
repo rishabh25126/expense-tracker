@@ -3,11 +3,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import VoiceInput from '@/components/VoiceInput';
-import GroupNav from '@/components/GroupNav';
 import OnlineIndicator from '@/components/OnlineIndicator';
 import AmountCalculator from '@/components/AmountCalculator';
-import type { ParsedExpense, Category, Group, Expense } from '@/types';
-import { queryKeys } from '@/lib/queryKeys';
+import type { ParsedExpense } from '@/types';
+import { categoriesOptions, refreshGroupData } from '@/lib/groupQueries';
 import { enqueue, pendingCount, getQueue, dequeue } from '@/lib/offlineQueue';
 
 const DEFAULTS = ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
@@ -36,25 +35,6 @@ export default function GroupAddPage() {
     if (statusTimer.current) clearTimeout(statusTimer.current);
     statusTimer.current = setTimeout(() => { setSaved(false); setQueued(false); }, 2000);
   };
-
-  // Prefetch group, expenses, and categories in parallel so Expenses/Dashboard/Stats/Categories tabs load instantly
-  useEffect(() => {
-    if (!id) return;
-    void Promise.all([
-      queryClient.prefetchQuery({
-        queryKey: queryKeys.group(id),
-        queryFn: () => fetch(`/api/groups/${id}`).then(r => r.json()) as Promise<Group>,
-      }),
-      queryClient.prefetchQuery({
-        queryKey: queryKeys.expenses(id),
-        queryFn: () => fetch(`/api/groups/${id}/expenses`).then(r => r.json()) as Promise<Expense[]>,
-      }),
-      queryClient.prefetchQuery({
-        queryKey: queryKeys.categories(id),
-        queryFn: () => fetch(`/api/groups/${id}/categories`).then(r => r.json()) as Promise<Category[]>,
-      }),
-    ]);
-  }, [id, queryClient]);
 
   // Online/offline tracking + pending count
   useEffect(() => {
@@ -98,17 +78,12 @@ export default function GroupAddPage() {
         setPending(pendingCount(id));
         setSyncing(false);
       }
-      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.group(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.insights(id) });
+      refreshGroupData(queryClient, id);
     })();
     return () => { cancelled = true; };
   }, [online]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { data: customCats = [] } = useQuery({
-    queryKey: queryKeys.categories(id),
-    queryFn: () => fetch(`/api/groups/${id}/categories`).then(r => r.json()) as Promise<Category[]>,
-  });
+  const { data: customCats = [] } = useQuery(categoriesOptions(id));
 
   const categories = [...DEFAULTS, ...(Array.isArray(customCats) ? customCats : []).map(c => c.name).filter(n => !DEFAULTS.includes(n))];
 
@@ -137,9 +112,7 @@ export default function GroupAddPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.group(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.insights(id) });
+      refreshGroupData(queryClient, id);
       setSaved(true);
       setForm(f => ({ amount: '', category: f.category, description: '', date: TODAY() }));
       setVoiceKey(k => k + 1);
@@ -251,7 +224,6 @@ export default function GroupAddPage() {
       </form>
 
       <div className="hidden" />
-      <GroupNav groupId={id} />
     </div>
   );
 }

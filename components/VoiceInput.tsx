@@ -44,6 +44,7 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
   const lastProcessedRef = useRef('');
   const processingTranscriptRef = useRef(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mounted = useRef(true);
   const reducedMotion = useReducedMotion();
   useEffect(() => {
@@ -51,15 +52,25 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
     return () => {
       mounted.current = false;
       if (resetTimer.current) clearTimeout(resetTimer.current);
+      if (recordingTimer.current) clearTimeout(recordingTimer.current);
       void SpeechRecognition.abortListening();
     };
   }, []);
 
   useEffect(() => {
-    if (!disabled || !listening) return;
-    SpeechRecognition.abortListening();
+    if ((!disabled && online) || !listening) return;
+    void SpeechRecognition.abortListening();
     clientLog('info', 'Mic aborted while input disabled');
-  }, [disabled, listening, clientLog]);
+  }, [disabled, online, listening, clientLog]);
+
+  useEffect(() => {
+    if (!listening) {
+      if (recordingTimer.current) clearTimeout(recordingTimer.current);
+      return;
+    }
+    recordingTimer.current = setTimeout(() => { void SpeechRecognition.abortListening(); }, 20000);
+    return () => { if (recordingTimer.current) clearTimeout(recordingTimer.current); };
+  }, [listening]);
 
   // Safety to ensure we don't listen forever and we pass transcript
   useEffect(() => {
@@ -69,7 +80,6 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
 
     processingTranscriptRef.current = true;
     lastProcessedRef.current = transcript;
-    SpeechRecognition.abortListening();
     clientLog('info', 'Mic stopped recording', { transcript });
 
     Promise.resolve(onTranscript(transcript))
@@ -95,7 +105,9 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
   }, [browserSupportsSpeechRecognition, disabled, resetTranscript, clientLog]);
 
   const stop = useCallback(() => {
-    SpeechRecognition.stopListening();
+    // Web Speech stop() can keep the native mic session open on mobile until its
+    // final result. abort() releases it immediately; the captured transcript remains.
+    void SpeechRecognition.abortListening();
   }, []);
 
   if (!hydrated) return <div aria-hidden="true" className="h-[104px] w-full" />;

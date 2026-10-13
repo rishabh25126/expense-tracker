@@ -5,9 +5,9 @@ import { motion, useReducedMotion } from 'motion/react';
 
 type Props = { groupId: string };
 const items = [
-  { label: 'Add', slug: 'add', icon: '＋' },
   { label: 'Expenses', slug: 'expenses', icon: '≡' },
   { label: 'Dashboard', slug: 'dashboard', icon: '◫' },
+  { label: 'Add', slug: 'add', icon: '＋' },
   { label: 'Stats', slug: 'stats', icon: '▥' },
   { label: 'Categories', slug: 'categories', icon: '◇' },
 ];
@@ -25,10 +25,14 @@ export default function GroupNav({ groupId }: Props) {
         {items.map(({ label, slug, icon }) => {
           const path = `/groups/${groupId}/${slug}`;
           const active = pathname === path;
+          const isAdd = slug === 'add';
           return <Link key={slug} href={path} aria-current={active ? 'page' : undefined}
             className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 text-[11px] font-medium sm:text-xs lg:min-h-12 lg:flex-row lg:justify-start lg:gap-3 lg:px-4 lg:text-sm ${active ? 'text-emerald-400' : 'text-gray-400 hover:bg-gray-900 hover:text-gray-100'}`}>
-            {active && <motion.span layoutId="active-nav" transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 360, damping: 30 }} className="absolute inset-0 rounded-xl bg-gray-800" />}
-            <span aria-hidden="true" className="relative text-xl leading-none lg:w-6 lg:text-lg">{icon}</span>
+            {active && <motion.span layoutId="active-nav" transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 360, damping: 30 }} className={`absolute inset-0 rounded-xl bg-gray-800 ${isAdd ? 'hidden lg:block' : ''}`} />}
+            {isAdd ? <>
+              <span aria-hidden="true" className="relative -mt-4 flex h-12 w-12 items-center justify-center rounded-full border-4 border-gray-950 bg-emerald-500 text-3xl font-light leading-none text-gray-950 shadow-lg shadow-emerald-950/40 lg:hidden">+</span>
+              <span aria-hidden="true" className="relative hidden w-6 text-lg leading-none lg:inline">{icon}</span>
+            </> : <span aria-hidden="true" className="relative text-xl leading-none lg:w-6 lg:text-lg">{icon}</span>}
             <span className="relative truncate">{label}</span>
           </Link>;
         })}

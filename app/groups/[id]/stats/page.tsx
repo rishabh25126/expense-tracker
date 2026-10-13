@@ -2,10 +2,8 @@
 import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import GroupNav from '@/components/GroupNav';
 import { formatINR } from '@/lib/format';
-import type { Expense, Group } from '@/types';
-import { queryKeys } from '@/lib/queryKeys';
+import { groupOptions, expensesOptions, refreshGroupData } from '@/lib/groupQueries';
 import { RECHARTS_THEME } from '@/lib/chartColors';
 
 const LineChart = dynamic(() => import('recharts').then(m => m.LineChart), { ssr: false });
@@ -23,35 +21,25 @@ export default function GroupStatsPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
 
-  const { data: group = null, isLoading: groupLoading } = useQuery({
-    queryKey: queryKeys.group(id),
-    queryFn: () => fetch(`/api/groups/${id}`).then(r => r.json()) as Promise<Group>,
-  });
+  const { data: group = null, isLoading: groupLoading } = useQuery(groupOptions(id));
 
-  const { data: rawExpenses = [], isLoading: expensesLoading } = useQuery({
-    queryKey: queryKeys.expenses(id),
-    queryFn: () => fetch(`/api/groups/${id}/expenses`).then(r => r.json()) as Promise<Expense[]>,
-  });
+  const { data: rawExpenses = [], isLoading: expensesLoading } = useQuery(expensesOptions(id));
 
   const startPeriod = useMutation({
     mutationFn: () => fetch(`/api/groups/${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'start_period' }) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.group(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
+      refreshGroupData(queryClient, id);
     }
   });
 
   const undoPeriod = useMutation({
     mutationFn: () => fetch(`/api/groups/${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'undo_period' }) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.group(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
+      refreshGroupData(queryClient, id);
     }
   });
 
   const expenses = Array.isArray(rawExpenses) ? rawExpenses : [];
-
-  if (groupLoading || expensesLoading) return <div id="main-content" className="app-page has-nav" role="status">Loading stats…<GroupNav groupId={id} /></div>;
 
   const periodStart = group?.period_start ?? '';
   const currentPeriodExpenses = expenses.filter(e => !periodStart || e.date >= periodStart);
@@ -85,6 +73,14 @@ export default function GroupStatsPage() {
         </div>
       </div>
 
+      {groupLoading || expensesLoading ? (
+        <div className="grid gap-5 sm:grid-cols-2" role="status" aria-label="Loading stats">
+          <div className="surface h-32 animate-pulse" />
+          <div className="surface h-32 animate-pulse" />
+          <div className="surface h-64 animate-pulse" />
+          <div className="surface h-64 animate-pulse" />
+        </div>
+      ) : <>
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         <div className="surface min-w-0 p-5">
            <p className="text-xs text-gray-400">Total Expenses (Current Period)</p>
@@ -163,8 +159,7 @@ export default function GroupStatsPage() {
       </section>
       </div>
 
-      <div className="hidden" />
-      <GroupNav groupId={id} />
+      </>}
     </div>
   );
 }
