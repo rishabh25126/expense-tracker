@@ -1,6 +1,6 @@
 # AI Voice Expense Manager — Build Reference
 
-> Current architecture and phase history for the app. Early phases record the original build; Phase 8 replaced user-scoped Supabase Auth with the current single-user, tracker-scoped model. Later phases can supersede older implementation details; Phase 26 defines the current voice lifecycle.
+> Current architecture and phase history for the app. Early phases record the original build; Phase 8 replaced user-scoped Supabase Auth with the current single-user, tracker-scoped model. Later phases can supersede older implementation details; Phase 27 defines the current voice lifecycle.
 
 ---
 
@@ -281,6 +281,13 @@ The server accesses Supabase with the service-role key. `supabase/schema.sql` di
 - [x] Use the selected Voice concept A for the favicon, iOS home screen, and PWA install icons
 - [x] Verify two consecutive recordings and stalled-start recovery with simulated Playwright recognition; physical iPhone microphone-indicator verification is still pending
 
+### Phase 27 — iPhone Voice Diagnostics ✅ INSTRUMENTED; DEVICE REPRO PENDING
+- [x] Wait for natural `onend` after a final result instead of issuing an extra `stop()` call; manual Stop still calls `stop()`
+- [x] Reuse `/api/logs` and `app_logs` for per-session Web Speech events: start, audio/speech start and end, result, stop, error, abort, callback, and watchdog timeouts
+- [x] Include a session ID, sequence, elapsed milliseconds, iOS/PWA state, visibility, and online state without including spoken text in the new client diagnostics
+- [x] Queue up to 200 unsent events in localStorage and retry failed writes; `/api/logs` is authenticated and reports database insert failure instead of false success
+- [ ] Reproduce the second-attempt failure on a physical iPhone after deployment and compare both sessions on `/logs`; simulated browser tests cannot verify WebKit microphone capture
+
 ---
 
 ## Environment Variables Required
@@ -370,6 +377,7 @@ expenseTrackingApp/
 │   ├── logger.ts
 │   ├── queryKeys.ts              # React Query cache keys
 │   ├── groupQueries.ts           # Shared checked GET queries and mutation refresh
+│   ├── voiceTelemetry.ts         # Client queue and retry for voice diagnostics
 │   ├── csvExport.ts              # Client-side CSV generation
 │   ├── offlineQueue.ts           # localStorage offline expense queue
 │   ├── chartColors.ts            # Shared color palette + recharts theme
@@ -420,7 +428,7 @@ type Category = {
 ## Current Security Model
 
 - `/api/auth` compares `APP_USERNAME` and `APP_PASSWORD`, then sets an HttpOnly `app_session=1` cookie for 30 days. Middleware redirects unauthenticated page visits to `/login`.
-- App-facing group, expense, category, feedback, insights, and parse routes call `isAuthed()`. The keepalive route instead requires `CRON_SECRET` and the expected Vercel cron-schedule header. The legacy `/api/logs` POST endpoint is unauthenticated in the current implementation.
+- App-facing group, expense, category, feedback, insights, parse, and log routes call `isAuthed()`. The keepalive route instead requires `CRON_SECRET` and the expected Vercel cron-schedule header.
 - Server-side database calls use the Supabase service-role key and bypass RLS. The schema disables RLS; this is a single-user app, not a Supabase Auth or multi-user setup.
 - `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` remain server-side environment variables. Do not commit credential files.
 
@@ -465,3 +473,4 @@ type Category = {
 24. Persistent tracker navigation, shared query refresh, and microphone cleanup
 25. Native voice lifecycle and mobile icon controls
 26. Repeat voice sessions, stalled-start recovery, and selected Voice app icon
+27. iPhone voice lifecycle diagnostics and physical-device follow-up

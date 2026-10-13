@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 
-export async function log(level: 'INFO' | 'ERROR' | 'WARN', message: string, data?: unknown) {
+export async function log(level: 'INFO' | 'ERROR' | 'WARN', message: string, data?: unknown): Promise<boolean> {
   try {
     const supabase = createAdminClient();
 
@@ -15,9 +15,12 @@ export async function log(level: 'INFO' | 'ERROR' | 'WARN', message: string, dat
 
     if (error) {
       console.error('Failed to write app log to database:', error);
+      return false;
     }
+    return true;
   } catch (e) {
     // silently fail — don't break the app for logging failures
     console.error('Failed to execute log function:', e);
+    return false;
   }
 }
