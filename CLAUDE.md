@@ -27,12 +27,13 @@ This is a voice-first expense tracking PWA built with Next.js 15, strict TypeScr
 - `motion` for UI transitions; `big.js` for calculator arithmetic
 
 ## Key Patterns
-- App-facing API routes use `isAuthed()` from `lib/auth.ts`; the cron route uses `CRON_SECRET`. The legacy `/api/logs` POST route is an exception.
+- App-facing API routes, including `/api/logs`, use `isAuthed()` from `lib/auth.ts`; the cron route uses `CRON_SECRET`.
 - All DB access via `createAdminClient()` from `lib/supabase/admin.ts`
 - React Query keys defined in `lib/queryKeys.ts`
 - Expenses/categories scoped by `group_id` (no user_id — single user)
 - Period filtering is client-side (not in SQL queries)
 - Offline expenses queued in localStorage, auto-synced on reconnect
 - Default categories have dedicated icons. Custom category icons are stored in `categories.icon`; apply `supabase/migrations/20261014_add_category_icon.sql` on an existing database before using icon selection. Never rerun the destructive `supabase/schema.sql` on existing data.
-- Voice input uses one native Web Speech recognizer per recording. Completed recordings call `stop()` and wait for `onend`; cancellation, offline, page hide, and unmount call `abort()`. The startup and end-event watchdogs recover stalled browser sessions. A real iPhone check is still needed for the microphone indicator.
+- Voice input uses one native Web Speech recognizer per recording. A final result waits for natural `onend`; manual Stop calls `stop()`; cancellation, offline, page hide, and unmount call `abort()`. Watchdogs recover stalled browser sessions. A real iPhone check is still needed for the microphone indicator.
 - The selected Voice app icon source is `public/icons/voice.svg`; generated browser, iOS, and PWA icons are in `public/icons/`.
+- Voice lifecycle diagnostics are queued in localStorage by `lib/voiceTelemetry.ts` and stored through `/api/logs` in `app_logs`. New client events contain phase/timing metadata, not spoken text.

@@ -50,7 +50,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 - All database access goes through the server-side Supabase service-role client (bypasses RLS)
 - React Query caches tracker data client-side for 30 seconds. The tracker layout keeps navigation mounted and prefetches group, expenses, and categories; loading states stay within each section.
 - Expense save and offline sync refresh groups, tracker details, expenses, and categories in the background. Insights and digest become stale until the user requests them again.
-- Each voice recording owns a fresh native recognition instance. Completed recordings call `stop()` and wait for `onend` before a new session can start; cancel, offline, disable, page hide, and unmount abort the instance. A five-second startup watchdog and two-second missing-`onend` fallback unlock stalled sessions for retry.
+- Each voice recording owns a fresh native recognition instance. A final result waits for natural `onend` without calling `stop()` again; manual Stop calls `stop()` and waits for `onend`. Cancel, offline, disable, page hide, and unmount abort the instance. A five-second startup watchdog and two-second missing-`onend` fallback unlock stalled sessions for retry. The component logs each native lifecycle event and timeout with a session ID, sequence number, and elapsed time; these new diagnostics omit spoken text. `lib/voiceTelemetry.ts` keeps up to 200 unsent events in localStorage and retries failed storage writes.
 - Expenses and categories scoped by `group_id` (no `user_id` column — single-user)
 - Period filtering is client-side: `expenses.filter(e => e.date >= periodStart)`
 - Custom category icons are stored on the category row. Existing rows without an icon display initials until edited.
@@ -64,6 +64,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 - `/api/parse-expense` sends voice transcript to Claude Haiku
 - Returns structured `{ amount, category, date, description }`
 - `VoiceInput` waits for the native speech recognizer to end before parsing begins. Repeated sessions and stalled-start recovery passed simulated browser checks; the microphone indicator still needs verification on a physical iPhone after deployment.
+- Search for `Voice mic:` on `/logs` to compare the first and second recording attempts. The last event and its `session`, `sequence`, and `elapsedMs` metadata show where iOS stopped responding.
 - `/api/groups/[id]/insights` aggregates spending data, Claude generates plain-text insights
 - Feedback is appended to ignored local `feedback.txt`; on serverless hosting, that filesystem may not provide durable storage
 
@@ -100,7 +101,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 | `/api/groups/[id]/insights` | GET | AI spending insights |
 | `/api/parse-expense` | POST | AI voice transcript parsing |
 | `/api/feedback` | POST | Save feedback to ignored local `feedback.txt` |
-| `/api/logs` | POST | Legacy voice telemetry endpoint |
+| `/api/logs` | POST | Authenticated voice telemetry; returns an error if `app_logs` storage fails |
 | `/api/cron/keep-supabase-awake` | GET | Protected daily Supabase keepalive |
 
 ## Key Files
@@ -121,6 +122,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 | `lib/categoryIcons.ts` | Category icon choices and default mappings |
 | `components/CategoryIcon.tsx`, `components/CategoryIconPicker.tsx` | Shared icon display and custom-category picker |
 | `components/VoiceInput.tsx` | Voice input with offline detection |
+| `lib/voiceTelemetry.ts` | Durable client queue and retry for detailed voice diagnostics |
 | `public/icons/voice.svg`, `public/icons/*.png` | Selected Voice icon source and browser, iOS, and PWA sizes |
 | `components/AmountCalculator.tsx` | Bottom-sheet amount calculator using decimal-safe arithmetic |
 | `components/OnlineIndicator.tsx` | Green/red online status dot |
