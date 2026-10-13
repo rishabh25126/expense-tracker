@@ -7,49 +7,28 @@ export default function LoginPage() {
   const router = useRouter();
   const [form, setForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
-
   const login = useMutation({
-    mutationFn: async (credentials: { username: string; password: string }) => {
-      const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
-      });
-      if (!res.ok) throw new Error('Invalid credentials');
+    mutationFn: async (credentials: typeof form) => {
+      const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials) });
+      if (!res.ok) throw new Error('Invalid username or password');
       return res;
     },
     onSuccess: () => router.push('/'),
-    onError: () => setError('Invalid credentials'),
+    onError: (error: Error) => setError(error.message),
   });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    login.mutate(form);
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-8 text-center">Expense Tracker</h1>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            type="text" placeholder="Username" value={form.username}
-            onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <input
-            type="password" placeholder="Password" value={form.password}
-            onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-          <button type="submit" disabled={login.isPending}
-            className="w-full bg-white text-gray-900 rounded py-2 text-sm font-medium disabled:opacity-40">
-            {login.isPending ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+  return <main id="main-content" className="flex min-h-dvh items-center justify-center px-5 py-12">
+    <div className="w-full max-w-md">
+      <div className="mb-10 text-center">
+        <span aria-hidden="true" className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500 text-3xl font-bold text-gray-950">₹</span>
+        <h1 className="app-title mt-5">Welcome back</h1>
+        <p className="app-subtitle">Sign in to your spending workspace.</p>
       </div>
+      <form onSubmit={e => { e.preventDefault(); setError(''); login.mutate(form); }} className="surface space-y-5 p-6 sm:p-8">
+        <div><label htmlFor="username" className="field-label">Username</label><input id="username" name="username" type="text" autoComplete="username" spellCheck={false} required value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} className="field" placeholder="Your username…" /></div>
+        <div><label htmlFor="password" className="field-label">Password</label><input id="password" name="password" type="password" autoComplete="current-password" required value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} className="field" placeholder="Your password…" /></div>
+        <p aria-live="polite" className="status-message text-red-400">{error}</p>
+        <button type="submit" disabled={login.isPending} className="primary-action w-full disabled:opacity-50">{login.isPending ? 'Signing in…' : 'Sign in'}</button>
+      </form>
     </div>
-  );
+  </main>;
 }

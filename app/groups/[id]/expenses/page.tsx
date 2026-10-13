@@ -1,11 +1,15 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import GroupNav from '@/components/GroupNav';
 import type { Expense, Group, Category } from '@/types';
 import { queryKeys } from '@/lib/queryKeys';
 import { exportExpensesCSV } from '@/lib/csvExport';
+import { formatINR, formatDate } from '@/lib/format';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import CategoryIcon from '@/components/CategoryIcon';
+import { iconForCategory } from '@/lib/categoryIcons';
 
 const DEFAULT_CATS = ['Food', 'Travel', 'Rent', 'Shopping', 'Bills', 'Other'];
 
@@ -16,6 +20,15 @@ export default function GroupExpensesPage() {
   const [showAll, setShowAll] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [editForm, setEditForm] = useState({ amount: '', category: '', description: '', date: '' });
+  const editAmountRef = useRef<HTMLInputElement>(null);
+  const reducedMotion = useReducedMotion();
+  useEffect(() => {
+    if (!editing) return;
+    editAmountRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setEditing(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editing]);
 
   const { data: group = null, isLoading: groupLoading } = useQuery({
     queryKey: queryKeys.group(id),
@@ -47,7 +60,7 @@ export default function GroupExpensesPage() {
   const total = filtered.reduce((s, e) => s + Number(e.amount), 0);
 
   const deleteExpense = useMutation({
-    mutationFn: (eid: string) => fetch(`/api/groups/${id}/expenses/${eid}`, { method: 'DELETE' }),
+    mutationFn: async (eid: string) => { const res = await fetch(`/api/groups/${id}/expenses/${eid}`, { method: 'DELETE' }); if (!res.ok) throw new Error('Delete failed'); return res; },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
     },
@@ -60,6 +73,7 @@ export default function GroupExpensesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      if (!res.ok) throw new Error('Update failed');
       return res.json();
     },
     onSuccess: () => {
@@ -78,7 +92,7 @@ export default function GroupExpensesPage() {
   };
 
   const saveEdit = async () => {
-    if (!editing) return;
+    if (!editing || !editForm.amount || Number(editForm.amount) <= 0) return;
     updateExpense.mutate(
       { expenseId: editing.id, payload: { ...editForm, amount: Number(editForm.amount) } },
       { onSuccess: () => setEditing(null) },
@@ -94,10 +108,10 @@ export default function GroupExpensesPage() {
   };
 
   return (
-    <div className="min-h-screen p-4 max-w-lg mx-auto">
-      <div className="flex justify-between items-center mb-4">
+    <div id="main-content" className="app-page has-nav">
+      <div className="app-header flex-wrap">
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold">Expenses</h1>
+          <h1 className="app-title">Expenses</h1>
           <button
             type="button"
             onClick={handleReload}
@@ -108,81 +122,86 @@ export default function GroupExpensesPage() {
             ↻
           </button>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => exportExpensesCSV(filtered, group?.name ?? 'expenses')}
             disabled={filtered.length === 0}
-            className="text-xs px-2 py-1 rounded border border-gray-700 text-gray-400 disabled:opacity-40"
+            className="secondary-action text-sm disabled:opacity-40"
           >
             Export CSV
           </button>
           <button onClick={() => setShowAll(v => !v)}
-            className={`text-xs px-2 py-1 rounded border border-gray-700 ${showAll ? 'bg-white text-gray-900' : 'text-gray-400'}`}>
+            className={`secondary-action text-sm ${showAll ? 'bg-gray-800 text-emerald-400' : 'text-gray-400'}`}>
             {showAll ? 'Current period' : 'All time'}
           </button>
         </div>
       </div>
 
-      <div className="flex gap-2 flex-wrap mb-4">
+      <div aria-label="Filter by category" className="mb-6 flex flex-wrap gap-2">
         {['All', ...allCategories].map(c => (
           <button key={c} onClick={() => setFilterCategory(c)}
-            className={`text-xs px-2 py-1 rounded border border-gray-700 ${filterCategory === c ? 'bg-white text-gray-900' : 'text-gray-400'}`}>
+            aria-pressed={filterCategory === c}
+            className={`secondary-action text-sm ${filterCategory === c ? 'border-emerald-500 bg-gray-800 text-emerald-400' : 'text-gray-400'}`}>
             {c}
           </button>
         ))}
       </div>
 
       {filtered.length > 0 && (
-        <p className="text-sm text-gray-500 mb-3">Total: <strong className="text-gray-100">₹{total.toLocaleString()}</strong></p>
+        <div className="surface mb-5 flex items-center justify-between gap-3 p-5"><span className="text-sm text-gray-400">Filtered total · {filtered.length} expense{filtered.length === 1 ? '' : 's'}</span><strong className="text-xl text-gray-100">{formatINR(total)}</strong></div>
       )}
 
       {loading ? <p className="text-sm text-gray-400">Loading...</p> : filtered.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center mt-12">No expenses found</p>
+        <p className="surface p-10 text-center text-sm text-gray-400">No expenses match these filters.</p>
       ) : (
         <div className="space-y-2">
           {filtered.map(exp => (
-            <div key={exp.id} className="border border-gray-700 bg-gray-900 rounded p-3 flex justify-between items-start">
-              <div>
-                <p className="font-medium text-sm">₹{Number(exp.amount).toLocaleString()}</p>
-                <p className="text-xs text-gray-500">{exp.category} · {exp.date}</p>
-                {exp.description && <p className="text-xs text-gray-400">{exp.description}</p>}
+            <div key={exp.id} className="surface flex min-w-0 items-start justify-between gap-3 p-4 sm:p-5">
+              <div className="flex min-w-0 items-start gap-3">
+                <CategoryIcon icon={iconForCategory(exp.category, (Array.isArray(customCats) ? customCats : []).find(c => c.name === exp.category)?.icon)} fallbackName={exp.category} />
+                <div className="min-w-0">
+                <p className="text-lg font-semibold">{formatINR(exp.amount)}</p>
+                <p className="mt-1 text-sm text-gray-400">{exp.category} · {formatDate(exp.date)}</p>
+                {exp.description && <p className="mt-1 break-words text-sm text-gray-300">{exp.description}</p>}
+                </div>
               </div>
-              <div className="flex gap-2 ml-2">
-                <button onClick={() => startEdit(exp)} className="text-xs text-blue-400">Edit</button>
-                <button onClick={() => handleDelete(exp.id)} className="text-xs text-red-400">Del</button>
+              <div className="flex shrink-0 flex-col gap-1 sm:flex-row">
+                <button onClick={() => startEdit(exp)} className="secondary-action text-sm">Edit</button>
+                <button onClick={() => handleDelete(exp.id)} className="secondary-action danger-action text-sm">Delete</button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {editing && (
-        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-10">
-          <div className="bg-gray-900 border border-gray-700 w-full max-w-sm rounded-t-xl p-4 space-y-3">
-            <h2 className="font-semibold">Edit Expense</h2>
-            <input type="number" value={editForm.amount}
+      <p aria-live="polite" className="status-message text-red-400">{deleteExpense.isError ? 'Could not delete expense.' : updateExpense.isError ? 'Could not update expense.' : ''}</p>
+      <AnimatePresence>{editing && (
+        <motion.div className="sheet-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0 : .18 }} onMouseDown={event => { if (event.target === event.currentTarget) setEditing(null); }}>
+          <motion.div role="dialog" aria-modal="true" aria-labelledby="edit-expense-title" className="sheet space-y-4" initial={{ y: reducedMotion ? 0 : 28 }} animate={{ y: 0 }} exit={{ y: reducedMotion ? 0 : 28 }} transition={{ duration: reducedMotion ? 0 : .2 }}>
+            <h2 id="edit-expense-title" className="section-title">Edit expense</h2>
+            <div><label htmlFor="edit-amount" className="field-label">Amount</label><input ref={editAmountRef} id="edit-amount" name="amount" inputMode="decimal" min="0.01" step="0.01" type="number" value={editForm.amount}
               onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))}
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100" placeholder="Amount" />
-            <select value={editForm.category}
+              className="field" /></div>
+            <div><label htmlFor="edit-category" className="field-label">Category</label><select id="edit-category" name="category" value={editForm.category}
               onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100">
+              className="field">
               {allCategories.map(c => <option key={c}>{c}</option>)}
-            </select>
-            <input type="text" value={editForm.description}
+            </select></div>
+            <div><label htmlFor="edit-description" className="field-label">Description</label><input id="edit-description" name="description" type="text" value={editForm.description}
               onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500" placeholder="Description" />
-            <input type="date" value={editForm.date}
+              className="field" placeholder="Optional description…" /></div>
+            <div><label htmlFor="edit-date" className="field-label">Date</label><input id="edit-date" name="date" type="date" value={editForm.date}
               onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
-              className="w-full max-w-full box-border appearance-none bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 [&::-webkit-date-and-time-value]:text-gray-100" />
+              className="field max-w-full appearance-none [&::-webkit-date-and-time-value]:text-gray-100" /></div>
             <div className="flex gap-2">
-              <button onClick={saveEdit} disabled={updateExpense.isPending} className="flex-1 bg-white text-gray-900 rounded py-2 text-sm">Save</button>
-              <button onClick={() => setEditing(null)} className="flex-1 border border-gray-700 rounded py-2 text-sm text-gray-300">Cancel</button>
+              <button onClick={saveEdit} disabled={updateExpense.isPending || !editForm.amount || Number(editForm.amount) <= 0} className="primary-action flex-1 disabled:opacity-50">Save</button>
+              <button onClick={() => setEditing(null)} className="secondary-action flex-1">Cancel</button>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+      )}</AnimatePresence>
 
-        <div className="h-14 mb-32" />
+        <div className="hidden" />
       <GroupNav groupId={id} />
     </div>
   );

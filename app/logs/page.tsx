@@ -28,14 +28,14 @@ export default async function LogsPage({ searchParams }: PageProps) {
   const { data: logs, error } = await query;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <main id="main-content" className="app-page text-gray-100">
+      <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">System Logs</h1>
-          <p className="text-gray-400 mt-2">Internal application logs (Latest 100). Do not share this URL.</p>
+          <h1 className="app-title">System logs</h1>
+          <p className="app-subtitle">Latest 100 application events.</p>
         </div>
 
-        <form method="GET" action="/logs" className="flex flex-col sm:flex-row gap-4 bg-gray-800 p-4 rounded-xl items-end">
+        <form method="GET" action="/logs" className="surface flex flex-col gap-4 p-5 sm:flex-row sm:items-end">
           <div className="flex-1 w-full">
             <label htmlFor="search" className="block text-sm font-medium text-gray-400 mb-1">Search Message</label>
             <input
@@ -44,7 +44,7 @@ export default async function LogsPage({ searchParams }: PageProps) {
               name="search"
               defaultValue={search}
               placeholder="e.g. timeout..."
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="field"
             />
           </div>
           <div className="w-full sm:w-48">
@@ -53,7 +53,7 @@ export default async function LogsPage({ searchParams }: PageProps) {
               id="level"
               name="level"
               defaultValue={level}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+              className="field appearance-none"
             >
               <option value="">All Levels</option>
               <option value="info">Info</option>
@@ -63,7 +63,7 @@ export default async function LogsPage({ searchParams }: PageProps) {
           </div>
           <button
             type="submit"
-            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+            className="primary-action w-full sm:w-auto"
           >
             Filter
           </button>
@@ -74,9 +74,9 @@ export default async function LogsPage({ searchParams }: PageProps) {
             Error loading logs: {error.message}
           </div>
         ) : (
-          <div className="bg-gray-800 rounded-xl overflow-hidden overflow-x-auto border border-gray-700">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-gray-800/80 border-b border-gray-700">
+          <div className="surface overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead data-ui="logs-table" className="bg-gray-800/80 border-b border-gray-700">
                 <tr>
                   <th className="px-6 py-3 font-semibold text-gray-300">Timestamp</th>
                   <th className="px-6 py-3 font-semibold text-gray-300">Level</th>
@@ -84,11 +84,11 @@ export default async function LogsPage({ searchParams }: PageProps) {
                   <th className="px-6 py-3 font-semibold text-gray-300">Metadata</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody data-ui="logs-table" className="divide-y divide-gray-700">
                 {logs?.map((log) => (
                   <tr key={log.id} className="hover:bg-gray-700/50">
                     <td className="px-6 py-4 text-gray-400">
-                      {new Date(log.created_at).toLocaleString()}
+                      {new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(log.created_at))}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium uppercase
@@ -102,7 +102,7 @@ export default async function LogsPage({ searchParams }: PageProps) {
                     <td className="px-6 py-4 text-white font-medium break-words whitespace-normal max-w-md">
                       {log.message}
                     </td>
-                    <td className="px-6 py-4 text-gray-400 font-mono text-xs max-w-xs truncate" title={log.metadata ? JSON.stringify(log.metadata) : ''}>
+                    <td className="max-w-xs break-all px-6 py-4 text-xs text-gray-400" title={log.metadata ? JSON.stringify(log.metadata) : ''}>
                       {log.metadata ? JSON.stringify(log.metadata) : '-'}
                     </td>
                   </tr>
@@ -119,6 +119,6 @@ export default async function LogsPage({ searchParams }: PageProps) {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

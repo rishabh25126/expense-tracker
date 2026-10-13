@@ -3,6 +3,7 @@ import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import GroupNav from '@/components/GroupNav';
+import { formatINR } from '@/lib/format';
 import type { Expense, Group } from '@/types';
 import { queryKeys } from '@/lib/queryKeys';
 import { RECHARTS_THEME } from '@/lib/chartColors';
@@ -50,7 +51,7 @@ export default function GroupStatsPage() {
 
   const expenses = Array.isArray(rawExpenses) ? rawExpenses : [];
 
-  if (groupLoading || expensesLoading) return <div className="p-4 text-sm text-gray-400">Loading...</div>;
+  if (groupLoading || expensesLoading) return <div id="main-content" className="app-page has-nav" role="status">Loading stats…<GroupNav groupId={id} /></div>;
 
   const periodStart = group?.period_start ?? '';
   const currentPeriodExpenses = expenses.filter(e => !periodStart || e.date >= periodStart);
@@ -61,15 +62,15 @@ export default function GroupStatsPage() {
   });
 
   return (
-    <div className="min-h-screen p-4 max-w-lg mx-auto">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold">Stats</h1>
-        <div className="flex gap-2">
+    <div id="main-content" className="app-page has-nav">
+      <div className="app-header flex-wrap">
+        <div><h1 className="app-title">Stats</h1><p className="app-subtitle">Patterns across your spending.</p></div>
+        <div className="flex flex-wrap gap-2">
           {group?.prev_period_start && (
             <button
               onClick={() => { if (confirm('Undo start period?')) undoPeriod.mutate(); }}
               disabled={undoPeriod.isPending}
-              className="text-xs px-3 py-1.5 rounded border border-gray-700 text-gray-400 disabled:opacity-50"
+              className="secondary-action text-sm disabled:opacity-50"
             >
               Undo
             </button>
@@ -77,26 +78,27 @@ export default function GroupStatsPage() {
           <button
             onClick={() => { if (confirm('Start a new period? This will reset your current period stats.')) startPeriod.mutate(); }}
             disabled={startPeriod.isPending}
-            className="text-xs px-3 py-1.5 rounded bg-white text-gray-900 font-medium disabled:opacity-50"
+            className="primary-action text-sm disabled:opacity-50"
           >
             Start New Period
           </button>
         </div>
       </div>
 
-      <div className="flex gap-3 mb-8 text-center">
-        <div className="border border-gray-700 bg-gray-900/50 rounded-lg p-3 flex-1">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2">
+        <div className="surface min-w-0 p-5">
            <p className="text-xs text-gray-400">Total Expenses (Current Period)</p>
-           <p className="text-xl font-bold mt-1 text-indigo-400">₹{currentPeriodExpenses.reduce((s, e) => s + Number(e.amount), 0).toLocaleString()}</p>
+           <p className="mt-2 break-words text-3xl font-bold text-emerald-400">{formatINR(currentPeriodExpenses.reduce((s, e) => s + Number(e.amount), 0))}</p>
         </div>
-        <div className="border border-gray-700 bg-gray-900/50 rounded-lg p-3 flex-1">
+        <div className="surface min-w-0 p-5">
            <p className="text-xs text-gray-400">Categories Used (Current Period)</p>
-           <p className="text-xl font-bold mt-1 text-indigo-400">{Object.keys(catTotals).length}</p>
+           <p className="mt-2 text-3xl font-bold text-emerald-400">{Object.keys(catTotals).length}</p>
         </div>
       </div>
 
-      <div className="mb-10">
-        <h2 className="text-sm font-semibold mb-3">Monthly spending (last 12 months)</h2>
+      <div className="grid min-w-0 gap-5 lg:grid-cols-2">
+      <section className="surface chart-panel p-5">
+        <h2 className="section-title mb-5">Monthly spending</h2>
         {(() => {
           const monthlyData: { label: string; amount: number }[] = [];
           for (let i = 11; i >= 0; i--) {
@@ -104,30 +106,30 @@ export default function GroupStatsPage() {
             const year = d.getFullYear();
             const monthStr = String(d.getMonth() + 1).padStart(2, '0');
             const key = `${year}-${monthStr}`;
-            const label = d.toLocaleString('default', { month: 'short' });
+            const label = new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(d);
             const total = expenses.filter(e => e.date.startsWith(key)).reduce((s, e) => s + Number(e.amount), 0);
             monthlyData.push({ label, amount: total });
           }
           return (
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={monthlyData} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={monthlyData} margin={{ top: 10, right: 12, left: -12, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={RECHARTS_THEME.gridStroke} />
                 <XAxis dataKey="label" tick={{ fill: RECHARTS_THEME.textFill, fontSize: 11 }} stroke={RECHARTS_THEME.axisStroke} />
                 <YAxis tick={{ fill: RECHARTS_THEME.textFill, fontSize: 11 }} stroke={RECHARTS_THEME.axisStroke} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                 <Tooltip
-                  formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Spent']}
+                  formatter={(value) => [formatINR(Number(value)), 'Spent']}
                   contentStyle={{ backgroundColor: RECHARTS_THEME.tooltipBg, border: `1px solid ${RECHARTS_THEME.tooltipBorder}`, borderRadius: 6, fontSize: 12 }}
                   itemStyle={{ color: '#e5e7eb' }}
                 />
-                <Line type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
+                <Line isAnimationActive={false} type="monotone" dataKey="amount" stroke="#3ecf8e" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           );
         })()}
-      </div>
+      </section>
 
-      <div className="mb-6">
-        <h2 className="text-sm font-semibold mb-3">Category-wise spends (Current Period)</h2>
+      <section className="surface chart-panel p-5">
+        <h2 className="section-title mb-5">Categories this period</h2>
         {(() => {
           const catTotals: Record<string, number> = {};
           currentPeriodExpenses.forEach(e => {
@@ -138,37 +140,30 @@ export default function GroupStatsPage() {
             .sort((a, b) => b.amount - a.amount);
 
           if (categoryData.length === 0) {
-            return <p className="text-xs text-gray-400">No expenses yet</p>;
+            return <p className="text-sm text-gray-400">No expenses this period yet.</p>;
           }
 
           return (
             <ResponsiveContainer width="100%" height={Math.max(100, categoryData.length * 50 + 50)}>
-              <BarChart data={categoryData} layout="vertical" margin={{ top: 10, right: 60, left: 20, bottom: 0 }}>
+              <BarChart data={categoryData} layout="vertical" margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={RECHARTS_THEME.gridStroke} horizontal={true} vertical={false}/>
                 <XAxis type="number" tick={{ fill: RECHARTS_THEME.textFill, fontSize: 11 }} stroke={RECHARTS_THEME.axisStroke} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
-                <YAxis dataKey="category" type="category" tick={{ fill: RECHARTS_THEME.textFill, fontSize: 11 }} stroke={RECHARTS_THEME.axisStroke} width={70} />
+                <YAxis dataKey="category" type="category" tick={{ fill: RECHARTS_THEME.textFill, fontSize: 11 }} tickFormatter={value => String(value).length > 11 ? `${String(value).slice(0, 10)}…` : String(value)} stroke={RECHARTS_THEME.axisStroke} width={78} />
                 <Tooltip
-                  formatter={(value) => `₹${Number(value).toLocaleString()}`}
+                  formatter={(value) => formatINR(Number(value))}
                   contentStyle={{ backgroundColor: RECHARTS_THEME.tooltipBg, border: `1px solid ${RECHARTS_THEME.tooltipBorder}`, borderRadius: 6, fontSize: 12 }}
                   itemStyle={{ color: '#e5e7eb' }}
                   cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                 />
-                <Bar dataKey="amount" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={24}>
-                  <LabelList
-                    dataKey="amount"
-                    position="right"
-                    formatter={(value: any) => `₹${Number(value || 0).toLocaleString()}`}
-                    fill={RECHARTS_THEME.textFill}
-                    fontSize={11}
-                  />
-                </Bar>
+                <Bar isAnimationActive={false} dataKey="amount" fill="#3ecf8e" radius={[0, 4, 4, 0]} barSize={24} />
               </BarChart>
             </ResponsiveContainer>
           );
         })()}
+      </section>
       </div>
 
-      <div className="h-14 mb-32" />
+      <div className="hidden" />
       <GroupNav groupId={id} />
     </div>
   );
