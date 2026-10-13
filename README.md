@@ -50,7 +50,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 - All database access goes through the server-side Supabase service-role client (bypasses RLS)
 - React Query caches tracker data client-side for 30 seconds. The tracker layout keeps navigation mounted and prefetches group, expenses, and categories; loading states stay within each section.
 - Expense save and offline sync refresh groups, tracker details, expenses, and categories in the background. Insights and digest become stale until the user requests them again.
-- Each voice recording owns a fresh native recognition instance. Completed recordings call `stop()` and wait for `onend` before a new session can start; cancel, offline, disable, page hide, and unmount abort the instance. A startup watchdog releases a stalled iPhone session for retry.
+- Each voice recording owns a fresh native recognition instance. Completed recordings call `stop()` and wait for `onend` before a new session can start; cancel, offline, disable, page hide, and unmount abort the instance. A five-second startup watchdog and two-second missing-`onend` fallback unlock stalled sessions for retry.
 - Expenses and categories scoped by `group_id` (no `user_id` column — single-user)
 - Period filtering is client-side: `expenses.filter(e => e.date >= periodStart)`
 - Custom category icons are stored on the category row. Existing rows without an icon display initials until edited.
@@ -63,7 +63,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 ### AI Integration
 - `/api/parse-expense` sends voice transcript to Claude Haiku
 - Returns structured `{ amount, category, date, description }`
-- `VoiceInput` waits for the native speech recognizer to end before parsing begins; verify repeated recordings and the phone's mic indicator on an actual iPhone when testing a deployment
+- `VoiceInput` waits for the native speech recognizer to end before parsing begins. Repeated sessions and stalled-start recovery passed simulated browser checks; the microphone indicator still needs verification on a physical iPhone after deployment.
 - `/api/groups/[id]/insights` aggregates spending data, Claude generates plain-text insights
 - Feedback is appended to ignored local `feedback.txt`; on serverless hosting, that filesystem may not provide durable storage
 
@@ -121,6 +121,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 | `lib/categoryIcons.ts` | Category icon choices and default mappings |
 | `components/CategoryIcon.tsx`, `components/CategoryIconPicker.tsx` | Shared icon display and custom-category picker |
 | `components/VoiceInput.tsx` | Voice input with offline detection |
+| `public/icons/voice.svg`, `public/icons/*.png` | Selected Voice icon source and browser, iOS, and PWA sizes |
 | `components/AmountCalculator.tsx` | Bottom-sheet amount calculator using decimal-safe arithmetic |
 | `components/OnlineIndicator.tsx` | Green/red online status dot |
 | `vercel.json` | Daily Vercel Cron schedule |
@@ -173,7 +174,7 @@ CREATE TABLE app_logs (
 
 1. Clone the repo
 2. `npm install`
-3. Create `.env.local` with these values (there is no committed example file):
+3. Create an ignored `.env.local` or `.env` file with these values (there is no committed example file):
    ```
    NEXT_PUBLIC_SUPABASE_URL=
    NEXT_PUBLIC_SUPABASE_ANON_KEY=

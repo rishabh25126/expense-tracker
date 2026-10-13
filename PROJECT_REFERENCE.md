@@ -1,6 +1,6 @@
 # AI Voice Expense Manager — Build Reference
 
-> Current architecture and phase history for the app. Early phases record the original build; Phase 8 replaced user-scoped Supabase Auth with the current single-user, tracker-scoped model. Check current architecture below before using older phase notes.
+> Current architecture and phase history for the app. Early phases record the original build; Phase 8 replaced user-scoped Supabase Auth with the current single-user, tracker-scoped model. Later phases can supersede older implementation details; Phase 26 defines the current voice lifecycle.
 
 ---
 
@@ -103,7 +103,7 @@ The server accesses Supabase with the service-role key. `supabase/schema.sql` di
 - [x] Parsed result pre-fills the form
 
 ### Phase 4 — Expense Entry ✅ COMPLETED (commit: 3390ffc)
-- [x] `/add` page: voice entry → parse → pre-fill form → save
+- [x] Add Expense flow (now at `/groups/[id]/add`): voice entry → parse → pre-fill form → save
 - [x] Manual entry form: amount, category, date, description
 - [x] POST to `/api/groups/[id]/expenses` from `/groups/[id]/add`
 - [x] Amount required validation, date defaults to today
@@ -175,7 +175,7 @@ The server accesses Supabase with the service-role key. `supabase/schema.sql` di
 - [x] Push to GitHub
 - [x] Connect to Vercel
 - [x] Set environment variables in Vercel dashboard
-- [x] Test production voice input (HTTPS via Vercel)
+- [x] Test the original production voice input over HTTPS; the newer repeat-session behavior from Phase 26 still needs physical iPhone verification
 
 ### Phase 12 — Data Layer & Prefetch ✅ COMPLETED
 - [x] Integrate React Query across groups, expenses, categories, and insights
@@ -211,7 +211,7 @@ The server accesses Supabase with the service-role key. `supabase/schema.sql` di
 - [x] Manual form works offline — expenses saved to localStorage queue
 - [x] Auto-sync: when `online` event fires, queued expenses POST sequentially to API (FIFO)
 - [x] Pending count shown on Add page ("2 expenses pending sync" / "Syncing...")
-- [x] "Queued!" yellow toast when saving offline, "Queue Expense" button text
+- [x] Yellow inline "Expense queued for sync" status when saving offline, "Queue Expense" button text
 - [x] On sync failure: stops at first error, remaining items retry on next online event
 
 ### Phase 19 — Advanced Analytics & Visualizations ✅ COMPLETED
@@ -232,7 +232,7 @@ The server accesses Supabase with the service-role key. `supabase/schema.sql` di
 - [x] Hidden route `/logs` dynamically fetches events and supports filtering via URL Query params.
 - [x] End-to-End telemetry for voice flow (start/stop recording, parsing raw chunks, and AI success/failure states)
 - [x] Used `react-speech-recognition` for this phase's voice handling; Phase 25 replaces it after iPhone microphone cleanup remained unreliable.
-- [x] Force-stop microphone access before starting AI parsing so the phone mic is not kept active while `/api/parse-expense` is in flight
+- [x] Close microphone access before starting AI parsing so the phone mic is not kept active while `/api/parse-expense` is in flight (current completion uses `stop()`/`onend` in Phase 26)
 
 ### Phase 21 — Supabase Keepalive Cron ✅ COMPLETED
 - [x] Added `vercel.json` daily cron schedule (`30 3 * * *`)
@@ -263,13 +263,13 @@ The server accesses Supabase with the service-role key. `supabase/schema.sql` di
 - [x] Keep tracker navigation mounted in `app/groups/[id]/layout.tsx`, with a route loading state and section-level Stats skeletons
 - [x] Share checked group, expense, and category queries with a 30-second stale window; preserve cached content during refresh
 - [x] After an expense save or offline sync, refresh groups, tracker, expenses, and categories; invalidate on-demand insights and digest without automatically calling AI endpoints
-- [x] Abort Web Speech recognition on Stop, disable/offline, timeout, and unmount so the mic session closes promptly
+- [x] Add explicit Web Speech cleanup for Stop, disable/offline, timeout, and unmount (completion behavior was refined in Phase 26)
 - [x] Add spacing between Dashboard Top spends and Recent expenses
 - [x] Build, lint, delayed-API browser interactions, responsive spacing, and simulated recognition cleanup checks
 
 ### Phase 25 — Mobile Voice & Control Refinement ✅ COMPLETED
 - [x] Replace the shared speech-recognition manager with a fresh native Web Speech recognizer for each recording
-- [x] Abort that exact instance on Stop, final result, navigation, offline/disabled state, page hide, and timeout; clear event handlers and timers
+- [x] Own and clean up that exact instance on Stop, final result, navigation, offline/disabled state, page hide, and timeout; Phase 26 switches completed sessions to `stop()`/`onend`
 - [x] Use distinct Lucide receipt, dashboard, chart, tag, and plus icons in an icon-only mobile tab bar with larger touch targets, accessible names, and a vertically centered Add circle
 - [x] Replace the amount calculator glyph with a recognizable calculator icon
 - [x] Verify build and simulated speech lifecycle plus responsive navigation in Playwright; physical iPhone microphone-indicator verification remains device-dependent
@@ -279,6 +279,7 @@ The server accesses Supabase with the service-role key. `supabase/schema.sql` di
 - [x] End completed voice sessions with `stop()` and wait for `onend` before allowing another recording; keep `abort()` for cancellation and unmount
 - [x] Recover from a stalled microphone startup or missing `onend` without reopening the app
 - [x] Use the selected Voice concept A for the favicon, iOS home screen, and PWA install icons
+- [x] Verify two consecutive recordings and stalled-start recovery with simulated Playwright recognition; physical iPhone microphone-indicator verification is still pending
 
 ---
 
@@ -315,7 +316,7 @@ CRON_SECRET=
 }
 ```
 
-**`next.config.ts`** wraps the Next config with `next-pwa`, registers the service worker, and disables it in development. The manifest and app metadata supply install icons. There is no custom install banner.
+**`next.config.ts`** wraps the Next config with `next-pwa`, registers the service worker, and disables it in development. The manifest supplies PWA PNG icons; `app/layout.tsx` also points browsers to `voice.svg` and its 32px PNG fallback, and iOS to `apple-touch-icon.png`. There is no custom install banner.
 
 ---
 
@@ -344,7 +345,8 @@ expenseTrackingApp/
 │   │       ├── dashboard/page.tsx # Totals + category breakdown + insights
 │   │       ├── stats/page.tsx     # Charts + period controls
 │   │       └── categories/page.tsx
-│   └── logs/page.tsx              # Internal system-log viewer
+│   ├── logs/page.tsx              # Internal system-log viewer
+│   └── api/                       # Auth, group, expense, category, insight, feedback, log, cron, and parse routes
 ├── public/icons/
 │   ├── voice.svg                  # Source for selected Voice favicon
 │   ├── favicon-32x32.png          # Browser fallback favicon
@@ -359,19 +361,6 @@ expenseTrackingApp/
 │   ├── OnlineIndicator.tsx        # Green/red online status dot
 │   ├── FeedbackButton.tsx
 │   └── QueryProvider.tsx          # React Query client provider
-├── app/api/
-│   ├── auth/route.ts
-│   ├── groups/route.ts
-│   ├── groups/[id]/route.ts
-│   ├── groups/[id]/expenses/route.ts
-│   ├── groups/[id]/expenses/[eid]/route.ts
-│   ├── groups/[id]/categories/route.ts
-│   ├── groups/[id]/categories/[cid]/route.ts
-│   ├── groups/[id]/insights/route.ts
-│   ├── feedback/route.ts
-│   ├── logs/route.ts              # Legacy voice telemetry POST
-│   ├── cron/keep-supabase-awake/route.ts
-│   └── parse-expense/route.ts
 ├── lib/
 │   ├── supabase/
 │   │   ├── client.ts
@@ -463,7 +452,7 @@ type Category = {
 11. Deploy to Vercel
 12. React Query data layer & prefetch
 13. Group management UX (rename/delete trackers)
-14. —
+14. Not assigned
 15. Advanced insights & alerts — planned
 16. Organization & search — planned
 17. Data portability (offline indicator, CSV export)
@@ -475,3 +464,4 @@ type Category = {
 23. Responsive UI design system, category icons, and browser verification
 24. Persistent tracker navigation, shared query refresh, and microphone cleanup
 25. Native voice lifecycle and mobile icon controls
+26. Repeat voice sessions, stalled-start recovery, and selected Voice app icon
