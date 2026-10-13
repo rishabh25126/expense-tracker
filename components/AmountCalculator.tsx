@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Big from 'big.js';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
 type Operator = 'add' | 'subtract' | 'multiply' | 'divide';
 
@@ -73,6 +74,9 @@ export default function AmountCalculator({ value, onAmountChange }: Props) {
   const [operator, setOperator] = useState<Operator | null>(null);
   const [waitingForValue, setWaitingForValue] = useState(false);
   const [error, setError] = useState('');
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (!open) return;
@@ -80,12 +84,14 @@ export default function AmountCalculator({ value, onAmountChange }: Props) {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setOpen(false);
+        triggerRef.current?.focus();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open]);
+  useEffect(() => { if (open) closeRef.current?.focus(); }, [open]);
 
   const openCalculator = () => {
     setDisplay(initialDisplay(value));
@@ -198,25 +204,28 @@ export default function AmountCalculator({ value, onAmountChange }: Props) {
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={openCalculator}
-        className="absolute right-1 top-1 bottom-1 w-11 rounded border border-gray-700 bg-gray-900 text-[11px] font-semibold text-gray-200 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="absolute right-1 top-1 bottom-1 w-11 rounded-lg border border-gray-700 bg-gray-900 text-base font-semibold text-gray-200 hover:bg-gray-700"
         aria-label="Open amount calculator"
         title="Calculator"
       >
-        123
+        ▦
       </button>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-20 flex items-end justify-center bg-black/60"
+      <AnimatePresence>{open && (
+        <motion.div
+          className="sheet-backdrop"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0 : .18 }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="amount-calculator-title"
-          onClick={() => setOpen(false)}
+          onClick={() => { setOpen(false); triggerRef.current?.focus(); }}
         >
-          <div
-            className="w-full max-w-sm rounded-t-xl border border-gray-700 bg-gray-900 p-4 shadow-xl"
+          <motion.div
+            initial={{ y: reducedMotion ? 0 : 28 }} animate={{ y: 0 }} exit={{ y: reducedMotion ? 0 : 28 }} transition={{ duration: reducedMotion ? 0 : .2 }}
+            className="sheet"
             onClick={event => event.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">
@@ -224,9 +233,10 @@ export default function AmountCalculator({ value, onAmountChange }: Props) {
                 Calculator
               </h2>
               <button
+                ref={closeRef}
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300"
+                className="secondary-action text-sm"
               >
                 Close
               </button>
@@ -236,7 +246,7 @@ export default function AmountCalculator({ value, onAmountChange }: Props) {
               <p className="text-xs text-gray-500">
                 {storedValue !== null && operator ? `${storedValue} ${operatorLabels[operator]}` : 'INR'}
               </p>
-              <p className="truncate text-3xl font-semibold text-gray-100">{display}</p>
+              <p aria-live="polite" className="break-all text-3xl font-semibold text-gray-100">{display}</p>
             </div>
 
             <div className="grid grid-cols-4 gap-2">
@@ -246,10 +256,10 @@ export default function AmountCalculator({ value, onAmountChange }: Props) {
               <button type="button" onClick={backspace} className="h-12 rounded bg-gray-700 text-sm font-medium text-gray-100">
                 Del
               </button>
-              <button type="button" onClick={() => applyOperator('divide')} className="h-12 rounded bg-indigo-600 text-sm font-medium text-white">
+              <button type="button" onClick={() => applyOperator('divide')} className="h-12 rounded bg-emerald-600 text-sm font-medium text-white">
                 /
               </button>
-              <button type="button" onClick={() => applyOperator('multiply')} className="h-12 rounded bg-indigo-600 text-sm font-medium text-white">
+              <button type="button" onClick={() => applyOperator('multiply')} className="h-12 rounded bg-emerald-600 text-sm font-medium text-white">
                 *
               </button>
 
@@ -258,7 +268,7 @@ export default function AmountCalculator({ value, onAmountChange }: Props) {
                   {digit}
                 </button>
               ))}
-              <button type="button" onClick={() => applyOperator('subtract')} className="h-12 rounded bg-indigo-600 text-sm font-medium text-white">
+              <button type="button" onClick={() => applyOperator('subtract')} className="h-12 rounded bg-emerald-600 text-sm font-medium text-white">
                 -
               </button>
 
@@ -267,7 +277,7 @@ export default function AmountCalculator({ value, onAmountChange }: Props) {
                   {digit}
                 </button>
               ))}
-              <button type="button" onClick={() => applyOperator('add')} className="h-12 rounded bg-indigo-600 text-sm font-medium text-white">
+              <button type="button" onClick={() => applyOperator('add')} className="h-12 rounded bg-emerald-600 text-sm font-medium text-white">
                 +
               </button>
 
@@ -292,9 +302,9 @@ export default function AmountCalculator({ value, onAmountChange }: Props) {
             </div>
 
             {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+      )}</AnimatePresence>
     </>
   );
 }

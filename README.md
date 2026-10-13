@@ -15,6 +15,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 | Hosting | Vercel |
 | Data Layer | React Query (`@tanstack/react-query`) |
 | Calculator Math | `big.js` decimal arithmetic |
+| UI Motion | `motion` for navigation and sheet transitions |
 
 ## Features
 
@@ -29,6 +30,8 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 - Offline support: online/offline indicator, voice disabled when offline, offline expense queue with auto-sync
 - Daily Vercel Cron keepalive that performs a lightweight Supabase read for Free Plan inactivity protection
 - PWA installable on mobile
+- Responsive dark workspace UI with safe-area navigation, accessible forms, and reduced-motion support
+- Default categories have dedicated icons; each custom category stores a selectable icon that appears beside expense rows (icons may be reused)
 
 ## Architecture
 
@@ -71,6 +74,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 | `/groups/[id]/dashboard` | Today/period totals + category breakdown + AI insights |
 | `/groups/[id]/stats` | Daily chart + category bars + period controls |
 | `/groups/[id]/categories` | Manage custom categories |
+| `/logs` | Internal application logs and filters |
 
 ## API Routes
 
@@ -98,11 +102,16 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 | `lib/csvExport.ts` | Client-side CSV generation |
 | `lib/offlineQueue.ts` | localStorage offline expense queue |
 | `components/GroupNav.tsx` | Bottom nav for group pages |
+| `app/globals.css` | Shared responsive UI tokens, fields, actions, sheets, and focus styles |
+| `lib/format.ts` | INR and readable date formatting |
+| `lib/categoryIcons.ts` | Category icon choices and default mappings |
+| `components/CategoryIcon.tsx`, `components/CategoryIconPicker.tsx` | Shared icon display and custom-category picker |
 | `components/VoiceInput.tsx` | Voice input with offline detection |
 | `components/AmountCalculator.tsx` | Bottom-sheet amount calculator using decimal-safe arithmetic |
 | `components/OnlineIndicator.tsx` | Green/red online status dot |
 | `vercel.json` | Daily Vercel Cron schedule |
 | `supabase/schema.sql` | Database schema |
+| `supabase/migrations/20261014_add_category_icon.sql` | Safe icon-column migration for existing databases |
 | `PROJECT_REFERENCE.md` | Single source of truth for build phases |
 
 ## Database Schema
@@ -132,7 +141,8 @@ CREATE TABLE expenses (
 CREATE TABLE categories (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   group_id uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-  name text NOT NULL
+  name text NOT NULL,
+  icon text
 );
 ```
 
@@ -152,6 +162,7 @@ CREATE TABLE categories (
    ```
 4. Set the same `CRON_SECRET` in Vercel project environment variables
 5. Run `supabase/schema.sql` in Supabase SQL editor
+   - For an existing database, do not rerun `schema.sql` because it drops tables. Run `supabase/migrations/20261014_add_category_icon.sql` to add custom-category icons without deleting data.
 6. `npm run dev`
 
 ## Currency

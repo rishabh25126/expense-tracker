@@ -248,6 +248,16 @@ Target: expense logged in under 3 seconds.
 - [x] "Use" writes the computed INR amount back into the Amount field
 - [x] Uses `big.js` decimal arithmetic instead of expression evaluation
 
+### Phase 23 — Responsive UI Design System ✅ COMPLETED
+- [x] Supabase and Notion inspired dark workspace with emerald actions, readable surfaces, and shared UI tokens
+- [x] Responsive safe-area mobile navigation and desktop side navigation
+- [x] Accessible labels, focus states, live status messages, zoom support, and reduced-motion support
+- [x] `motion` transitions for navigation and sheets; shared INR and date formatting in `lib/format.ts`
+- [x] Cleanup for expense status timers, feedback timeout, speech recognition, and offline sync state after unmount
+- [x] Production build, lint, Taste Skill audit, and Playwright responsive interaction checks
+- [x] Dedicated default-category icons and selectable per-category icons for new and existing custom categories (choices may repeat)
+- [x] Additive `categories.icon` migration in `supabase/migrations/20261014_add_category_icon.sql` (apply to existing databases before using icon selection)
+
 ---
 
 ## Environment Variables Required
@@ -345,6 +355,8 @@ expenseTrackingApp/
 ├── components/
 │   ├── VoiceInput.tsx             # Voice input with offline detection
 │   ├── AmountCalculator.tsx       # Amount input calculator using big.js
+│   ├── CategoryIcon.tsx          # Shared category icon and legacy initials
+│   ├── CategoryIconPicker.tsx    # Custom category icon choices
 │   ├── GroupNav.tsx               # Bottom nav for group pages
 │   ├── OnlineIndicator.tsx        # Green/red online status dot
 │   ├── FeedbackButton.tsx
@@ -369,7 +381,11 @@ expenseTrackingApp/
 │   ├── queryKeys.ts              # React Query cache keys
 │   ├── csvExport.ts              # Client-side CSV generation
 │   ├── offlineQueue.ts           # localStorage offline expense queue
-│   └── chartColors.ts            # Shared color palette + recharts theme
+│   ├── chartColors.ts            # Shared color palette + recharts theme
+│   ├── categoryIcons.ts          # Icon choices and default mappings
+│   └── format.ts                 # INR and date display formatting
+├── supabase/migrations/
+│   └── 20261014_add_category_icon.sql # Additive migration for existing databases
 ├── types/
 │   └── index.ts
 ├── vercel.json                    # Daily Supabase keepalive cron
@@ -480,3 +496,4 @@ CREATE POLICY "Users access own categories" ON categories
 20. System Logging (app logs via hidden /logs UI using GET search queries)
 21. Supabase keepalive cron (daily Vercel Cron + protected read-only DB check)
 22. Amount calculator for manual expense entry
+23. Responsive UI design system and browser verification

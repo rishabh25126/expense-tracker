@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAuthed, unauth } from '@/lib/auth';
 import { log } from '@/lib/logger';
+import { isCategoryIconId } from '@/lib/categoryIcons';
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!await isAuthed()) return unauth();
@@ -21,10 +22,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!await isAuthed()) return unauth();
   try {
     const { id } = await params;
-    const { name } = await req.json() as { name: string };
+    const { name, icon } = await req.json() as { name: string; icon?: string };
     if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
+    if (!isCategoryIconId(icon)) return NextResponse.json({ error: 'Choose a valid icon' }, { status: 400 });
     const supabase = createAdminClient();
-    const { data, error } = await supabase.from('categories').insert({ group_id: id, name: name.trim() }).select().single();
+    const { data, error } = await supabase.from('categories').insert({ group_id: id, name: name.trim(), icon }).select().single();
     if (error) { await log('ERROR', 'categories POST failed', { group_id: id, error: error.message }); return NextResponse.json({ error: error.message }, { status: 500 }); }
     await log('INFO', 'Category created', { id: data.id, group_id: id, name: data.name });
     return NextResponse.json(data, { status: 201 });

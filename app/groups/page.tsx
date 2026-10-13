@@ -13,9 +13,9 @@ export default function GroupsPage() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
-  const { data: groups = [] } = useQuery({
+  const { data: groups = [], isLoading, isError: groupsError } = useQuery({
     queryKey: queryKeys.groups,
-    queryFn: () => fetch('/api/groups').then(r => r.json()) as Promise<Group[]>,
+    queryFn: async () => { const res = await fetch('/api/groups'); if (!res.ok) throw new Error('Could not load trackers'); return res.json() as Promise<Group[]>; },
   });
 
   const createGroup = useMutation({
@@ -25,6 +25,7 @@ export default function GroupsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim() }),
       });
+      if (!res.ok) throw new Error('Could not create tracker');
       return res.json();
     },
     onSuccess: (created) => {
@@ -99,69 +100,74 @@ export default function GroupsPage() {
   };
 
   return (
-    <div className="min-h-screen p-4 max-w-sm mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold">Trackers</h1>
-        <button onClick={() => logout.mutate()} disabled={logout.isPending} className="text-xs text-gray-400">Logout</button>
+    <main id="main-content" className="app-page max-w-3xl">
+      <div className="app-header">
+        <div><h1 className="app-title">Trackers</h1><p className="app-subtitle">Choose a workspace or start a new one.</p></div>
+        <button onClick={() => logout.mutate()} disabled={logout.isPending} className="secondary-action text-sm">Log out</button>
       </div>
 
-      {groups.length > 0 ? (
-        <div className="space-y-2 mb-6">
+      {isLoading ? <p className="muted" role="status">Loading trackers…</p> : groupsError ? <p role="alert" className="surface mb-8 p-6 text-red-400">Could not load trackers. Check your connection and refresh.</p> : groups.length > 0 ? (
+        <div className="space-y-3 mb-8">
           {groups.map(g => (
             <div
               key={g.id}
-              className="border border-gray-700 bg-gray-900 rounded p-3 flex items-center gap-2"
+              className="surface flex min-w-0 items-center gap-2 p-3 sm:p-4"
             >
               {renamingId === g.id ? (
                 <>
                   <input
+                    aria-label={`Rename ${g.name}`}
+                    name="tracker-rename"
                     type="text"
                     value={renameValue}
                     onChange={e => setRenameValue(e.target.value)}
-                    className="flex-1 bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="field min-w-0 flex-1"
                     placeholder="Tracker name"
-                    autoFocus
                     onKeyDown={e => { if (e.key === 'Enter') saveRename(); if (e.key === 'Escape') cancelRename(); }}
                   />
-                  <button type="button" onClick={saveRename} disabled={renameGroup.isPending || !renameValue.trim()} className="text-xs text-green-400 disabled:opacity-50">Save</button>
-                  <button type="button" onClick={cancelRename} disabled={renameGroup.isPending} className="text-xs text-gray-400">Cancel</button>
+                  <button type="button" onClick={saveRename} disabled={renameGroup.isPending || !renameValue.trim()} className="secondary-action text-sm text-emerald-400 disabled:opacity-50">Save</button>
+                  <button type="button" onClick={cancelRename} disabled={renameGroup.isPending} className="secondary-action text-sm">Cancel</button>
                 </>
               ) : (
                 <>
                   <button
                     type="button"
                     onClick={() => router.push(`/groups/${g.id}/add`)}
-                    className="flex-1 text-left font-medium text-sm hover:underline min-w-0"
+                    className="min-w-0 flex-1 px-2 text-left text-base font-semibold hover:text-emerald-400"
                   >
                     <span className="truncate block">{g.name}</span>
                   </button>
-                  <button type="button" onClick={() => startRename(g)} className="text-xs text-gray-400 shrink-0" title="Rename">Rename</button>
-                  <button type="button" onClick={e => handleDelete(e, g)} className="text-xs text-red-400 shrink-0" title="Delete">Delete</button>
-                  <span className="text-xs text-gray-500 shrink-0">→</span>
+                  <button type="button" onClick={() => startRename(g)} className="secondary-action shrink-0 text-sm" title="Rename">Rename</button>
+                  <button type="button" onClick={e => handleDelete(e, g)} className="secondary-action danger-action shrink-0 text-sm" title="Delete">Delete</button>
                 </>
               )}
             </div>
           ))}
         </div>
       ) : (
-        <p className="text-sm text-gray-400 mb-6 text-center">No trackers yet. Create one below.</p>
+        <p className="surface mb-8 p-10 text-center text-gray-400">No trackers yet. Create your first workspace below.</p>
       )}
 
-      <form onSubmit={handleCreate} className="flex gap-2">
+      <form onSubmit={handleCreate} className="surface space-y-3 p-5">
+        <label htmlFor="new-tracker" className="field-label">New tracker</label>
+        <div className="flex gap-2">
         <input
+          id="new-tracker" name="tracker-name" autoComplete="off"
           type="text" value={newName} onChange={e => setNewName(e.target.value)}
-          placeholder="New tracker name"
-          className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          placeholder="e.g. Household…"
+          className="field min-w-0 flex-1"
         />
         <button type="submit" disabled={createGroup.isPending || !newName.trim()}
-          className="bg-white text-gray-900 px-3 py-2 rounded text-sm disabled:opacity-40">
+          className="primary-action disabled:opacity-40">
           Create
         </button>
+        </div>
+        <p aria-live="polite" className="status-message text-red-400">{createGroup.isError ? 'Could not create tracker. Try again.' : ''}{renameGroup.isError ? 'Could not rename tracker.' : ''}{deleteGroup.isError ? 'Could not delete tracker.' : ''}</p>
       </form>
 
       <div className="mt-8 text-center">
         <FeedbackButton />
       </div>
-    </div>
+    </main>
   );
 }

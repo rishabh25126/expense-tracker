@@ -27,4 +27,5 @@ export type Category = {
   id: string;
   group_id: string;
   name: string;
+  icon?: string | null;
 };
