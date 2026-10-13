@@ -8,7 +8,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 |-------|------------|
 | Frontend | Next.js 15 (App Router) + TypeScript (strict) |
 | PWA | `next-pwa` with service worker + offline support |
-| Voice Input | `react-speech-recognition` over the browser Web Speech API |
+| Voice Input | Browser Web Speech API with one native recognizer per recording |
 | AI Parsing | Anthropic Claude API (`claude-haiku-4-5-20251001`) |
 | Database | Supabase (PostgreSQL) |
 | Auth | Simple cookie-based (`app_session`, HttpOnly) |
@@ -16,6 +16,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 | Data Layer | React Query (`@tanstack/react-query`) |
 | Calculator Math | `big.js` decimal arithmetic |
 | UI Motion | `motion` for navigation and sheet transitions |
+| UI Icons | `lucide-react` for navigation and calculator controls |
 
 ## Features
 
@@ -31,9 +32,11 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 - Daily Vercel Cron keepalive that performs a lightweight Supabase read for Free Plan inactivity protection
 - PWA installable on mobile
 - Responsive dark workspace UI with safe-area navigation, accessible forms, and reduced-motion support
-- Centered circular Add action in the mobile navigation; side navigation on larger screens
+- Icon-only mobile navigation with larger tap targets and a centered, vertically aligned emerald Add action; labeled side navigation on larger screens
 - Default categories have dedicated icons; each custom category stores a selectable icon that appears beside expense rows (icons may be reused)
 - Feedback sheet and internal system-log page
+
+Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/mobile-add-final.png)
 
 ## Architecture
 
@@ -47,7 +50,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 - All database access goes through the server-side Supabase service-role client (bypasses RLS)
 - React Query caches tracker data client-side for 30 seconds. The tracker layout keeps navigation mounted and prefetches group, expenses, and categories; loading states stay within each section.
 - Expense save and offline sync refresh groups, tracker details, expenses, and categories in the background. Insights and digest become stale until the user requests them again.
-- Voice Stop, going offline, disabling input, timeout, and leaving Add Expense abort Web Speech recognition to release the microphone.
+- Each voice recording owns a fresh native recognition instance. Stop, a final result, going offline, disabling input, timeout, page hide, and leaving Add Expense directly abort that instance before parsing.
 - Expenses and categories scoped by `group_id` (no `user_id` column — single-user)
 - Period filtering is client-side: `expenses.filter(e => e.date >= periodStart)`
 - Custom category icons are stored on the category row. Existing rows without an icon display initials until edited.
@@ -60,7 +63,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 ### AI Integration
 - `/api/parse-expense` sends voice transcript to Claude Haiku
 - Returns structured `{ amount, category, date, description }`
-- `VoiceInput` force-stops speech recognition before parsing begins so the phone mic is not left active during AI parsing
+- `VoiceInput` aborts its native speech recognizer before parsing begins; verify the phone's mic indicator on an actual iPhone when testing a deployment
 - `/api/groups/[id]/insights` aggregates spending data, Claude generates plain-text insights
 - Feedback is appended to ignored local `feedback.txt`; on serverless hosting, that filesystem may not provide durable storage
 
