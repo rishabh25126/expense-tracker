@@ -50,7 +50,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 - All database access goes through the server-side Supabase service-role client (bypasses RLS)
 - React Query caches tracker data client-side for 30 seconds. The tracker layout keeps navigation mounted and prefetches group, expenses, and categories; loading states stay within each section.
 - Expense save and offline sync refresh groups, tracker details, expenses, and categories in the background. Insights and digest become stale until the user requests them again.
-- Each voice recording owns a fresh native recognition instance. Stop, a final result, going offline, disabling input, timeout, page hide, and leaving Add Expense directly abort that instance before parsing.
+- Each voice recording owns a fresh native recognition instance. Completed recordings call `stop()` and wait for `onend` before a new session can start; cancel, offline, disable, page hide, and unmount abort the instance. A startup watchdog releases a stalled iPhone session for retry.
 - Expenses and categories scoped by `group_id` (no `user_id` column — single-user)
 - Period filtering is client-side: `expenses.filter(e => e.date >= periodStart)`
 - Custom category icons are stored on the category row. Existing rows without an icon display initials until edited.
@@ -63,7 +63,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 ### AI Integration
 - `/api/parse-expense` sends voice transcript to Claude Haiku
 - Returns structured `{ amount, category, date, description }`
-- `VoiceInput` aborts its native speech recognizer before parsing begins; verify the phone's mic indicator on an actual iPhone when testing a deployment
+- `VoiceInput` waits for the native speech recognizer to end before parsing begins; verify repeated recordings and the phone's mic indicator on an actual iPhone when testing a deployment
 - `/api/groups/[id]/insights` aggregates spending data, Claude generates plain-text insights
 - Feedback is appended to ignored local `feedback.txt`; on serverless hosting, that filesystem may not provide durable storage
 

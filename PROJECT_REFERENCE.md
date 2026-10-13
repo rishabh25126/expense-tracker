@@ -275,6 +275,11 @@ The server accesses Supabase with the service-role key. `supabase/schema.sql` di
 - [x] Verify build and simulated speech lifecycle plus responsive navigation in Playwright; physical iPhone microphone-indicator verification remains device-dependent
 - [x] Save the verified mobile Add Expense screenshot at `docs/ui/mobile-add-final.png`
 
+### Phase 26 — Repeat Voice Sessions & App Icon ✅ COMPLETED
+- [x] End completed voice sessions with `stop()` and wait for `onend` before allowing another recording; keep `abort()` for cancellation and unmount
+- [x] Recover from a stalled microphone startup or missing `onend` without reopening the app
+- [x] Use the selected Voice concept A for the favicon, iOS home screen, and PWA install icons
+
 ---
 
 ## Environment Variables Required
@@ -301,8 +306,8 @@ CRON_SECRET=
   "description": "Log expenses by voice in under 3 seconds",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#0d1712",
+  "theme_color": "#0d1712",
   "icons": [
     { "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png" }
@@ -340,6 +345,11 @@ expenseTrackingApp/
 │   │       ├── stats/page.tsx     # Charts + period controls
 │   │       └── categories/page.tsx
 │   └── logs/page.tsx              # Internal system-log viewer
+├── public/icons/
+│   ├── voice.svg                  # Source for selected Voice favicon
+│   ├── favicon-32x32.png          # Browser fallback favicon
+│   ├── apple-touch-icon.png       # iOS home screen icon
+│   └── icon-192x192.png, icon-512x512.png # PWA icons
 ├── components/
 │   ├── VoiceInput.tsx             # Voice input with offline detection
 │   ├── AmountCalculator.tsx       # Amount input calculator using big.js
