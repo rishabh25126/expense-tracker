@@ -18,7 +18,7 @@ Target: expense logged in under 3 seconds.
 | Frontend | Next.js (App Router) + TypeScript + PWA |
 | Language | TypeScript (strict mode) |
 | PWA | `next-pwa` with service worker + offline support |
-| Voice Input | `react-speech-recognition` (abstracts Web Speech API) |
+| Voice Input | Native browser Web Speech API, fresh recognizer per recording |
 | AI Parsing | Anthropic Claude API (claude-haiku-4-5 at runtime) |
 | Backend | Next.js API Routes (TypeScript) |
 | Database | Supabase (PostgreSQL, free tier) |
@@ -26,7 +26,7 @@ Target: expense logged in under 3 seconds.
 | Hosting | Vercel (free tier) |
 | SDK | `@anthropic-ai/sdk` |
 | Amount Calculator | `big.js` decimal arithmetic + custom React keypad |
-| UI | React Query data cache, `motion` transitions, responsive dark workspace |
+| UI | React Query data cache, `motion` transitions, `lucide-react` controls, responsive dark workspace |
 
 **Runtime AI model:** `claude-haiku-4-5-20251001` for expense parsing and spending insights, as configured in the API routes.
 
@@ -231,7 +231,7 @@ The server accesses Supabase with the service-role key. `supabase/schema.sql` di
 - [x] `lib/logger.ts` updated to write logs direct to Supabase
 - [x] Hidden route `/logs` dynamically fetches events and supports filtering via URL Query params.
 - [x] End-to-End telemetry for voice flow (start/stop recording, parsing raw chunks, and AI success/failure states)
-- [x] Replaced native Web Speech API handling with `react-speech-recognition` to eliminate iOS Safari abort bugs and deduplicate strict-mode tracking variables.
+- [x] Used `react-speech-recognition` for this phase's voice handling; Phase 25 replaces it after iPhone microphone cleanup remained unreliable.
 - [x] Force-stop microphone access before starting AI parsing so the phone mic is not kept active while `/api/parse-expense` is in flight
 
 ### Phase 21 — Supabase Keepalive Cron ✅ COMPLETED
@@ -266,6 +266,14 @@ The server accesses Supabase with the service-role key. `supabase/schema.sql` di
 - [x] Abort Web Speech recognition on Stop, disable/offline, timeout, and unmount so the mic session closes promptly
 - [x] Add spacing between Dashboard Top spends and Recent expenses
 - [x] Build, lint, delayed-API browser interactions, responsive spacing, and simulated recognition cleanup checks
+
+### Phase 25 — Mobile Voice & Control Refinement ✅ COMPLETED
+- [x] Replace the shared speech-recognition manager with a fresh native Web Speech recognizer for each recording
+- [x] Abort that exact instance on Stop, final result, navigation, offline/disabled state, page hide, and timeout; clear event handlers and timers
+- [x] Use distinct Lucide receipt, dashboard, chart, tag, and plus icons in an icon-only mobile tab bar with larger touch targets, accessible names, and a vertically centered Add circle
+- [x] Replace the amount calculator glyph with a recognizable calculator icon
+- [x] Verify build and simulated speech lifecycle plus responsive navigation in Playwright; physical iPhone microphone-indicator verification remains device-dependent
+- [x] Save the verified mobile Add Expense screenshot at `docs/ui/mobile-add-final.png`
 
 ---
 
@@ -455,3 +463,5 @@ type Category = {
 21. Supabase keepalive cron (daily Vercel Cron + protected read-only DB check)
 22. Amount calculator for manual expense entry
 23. Responsive UI design system, category icons, and browser verification
+24. Persistent tracker navigation, shared query refresh, and microphone cleanup
+25. Native voice lifecycle and mobile icon controls

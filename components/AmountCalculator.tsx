@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Big from 'big.js';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { Calculator } from 'lucide-react';
 
 type Operator = 'add' | 'subtract' | 'multiply' | 'divide';
 
@@ -207,11 +208,11 @@ export default function AmountCalculator({ value, onAmountChange }: Props) {
         ref={triggerRef}
         type="button"
         onClick={openCalculator}
-        className="absolute right-1 top-1 bottom-1 w-11 rounded-lg border border-gray-700 bg-gray-900 text-base font-semibold text-gray-200 hover:bg-gray-700"
+        className="absolute right-1 top-1 bottom-1 flex w-11 items-center justify-center rounded-lg border border-gray-700 bg-gray-900 text-emerald-300 hover:border-emerald-600 hover:bg-gray-800"
         aria-label="Open amount calculator"
         title="Calculator"
       >
-        ▦
+        <Calculator aria-hidden="true" size={23} strokeWidth={2} />
       </button>
 
       <AnimatePresence>{open && (
