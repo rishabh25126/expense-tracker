@@ -8,7 +8,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 |-------|------------|
 | Frontend | Next.js 15 (App Router) + TypeScript (strict) |
 | PWA | `next-pwa` with service worker + offline support |
-| Voice Input | Web Speech API (browser-native) |
+| Voice Input | `react-speech-recognition` over the browser Web Speech API |
 | AI Parsing | Anthropic Claude API (`claude-haiku-4-5-20251001`) |
 | Database | Supabase (PostgreSQL) |
 | Auth | Simple cookie-based (`app_session`, HttpOnly) |
@@ -24,14 +24,16 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 - Multi-group trackers (fully isolated expenses, categories per group)
 - Custom period system (not calendar-based) with undo support
 - Dashboard with today/period totals, category breakdown, AI spending insights
-- Stats page with daily spending chart and category comparison bars
-- Category management (defaults + custom per group)
+- Stats page with a 12-month trend chart, current-period category bars, and period controls
+- Category management (defaults + custom per group, with a selectable icon for each custom category)
 - CSV export (exports filtered view from Expenses page)
 - Offline support: online/offline indicator, voice disabled when offline, offline expense queue with auto-sync
 - Daily Vercel Cron keepalive that performs a lightweight Supabase read for Free Plan inactivity protection
 - PWA installable on mobile
 - Responsive dark workspace UI with safe-area navigation, accessible forms, and reduced-motion support
+- Centered circular Add action in the mobile navigation; side navigation on larger screens
 - Default categories have dedicated icons; each custom category stores a selectable icon that appears beside expense rows (icons may be reused)
+- Feedback sheet and internal system-log page
 
 ## Architecture
 
@@ -39,12 +41,16 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 - Cookie auth: `app_session=1` (HttpOnly, 30 days)
 - Middleware checks cookie, redirects to `/login` if missing
 - Credentials configured via `APP_USERNAME` / `APP_PASSWORD` env vars
+- There is no signup flow or Supabase Auth session; the app is configured for one user
 
 ### Data Flow
-- All API routes use Supabase service role key (bypasses RLS)
-- React Query caches data client-side (30s stale time, refetch on focus)
+- All database access goes through the server-side Supabase service-role client (bypasses RLS)
+- React Query caches tracker data client-side for 30 seconds. The tracker layout keeps navigation mounted and prefetches group, expenses, and categories; loading states stay within each section.
+- Expense save and offline sync refresh groups, tracker details, expenses, and categories in the background. Insights and digest become stale until the user requests them again.
+- Voice Stop, going offline, disabling input, timeout, and leaving Add Expense abort Web Speech recognition to release the microphone.
 - Expenses and categories scoped by `group_id` (no `user_id` column — single-user)
 - Period filtering is client-side: `expenses.filter(e => e.date >= periodStart)`
+- Custom category icons are stored on the category row. Existing rows without an icon display initials until edited.
 
 ### Offline Queue
 - Expenses saved to `localStorage` when offline (`offline_expenses_{groupId}`)
@@ -56,6 +62,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 - Returns structured `{ amount, category, date, description }`
 - `VoiceInput` force-stops speech recognition before parsing begins so the phone mic is not left active during AI parsing
 - `/api/groups/[id]/insights` aggregates spending data, Claude generates plain-text insights
+- Feedback is appended to ignored local `feedback.txt`; on serverless hosting, that filesystem may not provide durable storage
 
 ### Scheduled Keepalive
 - Vercel Cron calls `/api/cron/keep-supabase-awake` once daily at `03:30 UTC`
@@ -72,8 +79,8 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 | `/groups/[id]/add` | Voice + manual expense entry |
 | `/groups/[id]/expenses` | List with period/category filter + CSV export |
 | `/groups/[id]/dashboard` | Today/period totals + category breakdown + AI insights |
-| `/groups/[id]/stats` | Daily chart + category bars + period controls |
-| `/groups/[id]/categories` | Manage custom categories |
+| `/groups/[id]/stats` | Monthly trend + category bars + period controls |
+| `/groups/[id]/categories` | Manage custom categories and their icons |
 | `/logs` | Internal application logs and filters |
 
 ## API Routes
@@ -86,9 +93,11 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 | `/api/groups/[id]/expenses` | GET, POST | List / create expenses |
 | `/api/groups/[id]/expenses/[eid]` | PATCH, DELETE | Update / delete expense |
 | `/api/groups/[id]/categories` | GET, POST | List / create categories |
-| `/api/groups/[id]/categories/[cid]` | DELETE | Delete category |
+| `/api/groups/[id]/categories/[cid]` | PATCH, DELETE | Change category icon / delete category |
 | `/api/groups/[id]/insights` | GET | AI spending insights |
 | `/api/parse-expense` | POST | AI voice transcript parsing |
+| `/api/feedback` | POST | Save feedback to ignored local `feedback.txt` |
+| `/api/logs` | POST | Legacy voice telemetry endpoint |
 | `/api/cron/keep-supabase-awake` | GET | Protected daily Supabase keepalive |
 
 ## Key Files
@@ -99,9 +108,11 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 | `lib/supabase/admin.ts` | Service role Supabase client |
 | `lib/auth.ts` | `isAuthed()` helper |
 | `lib/queryKeys.ts` | React Query cache keys |
+| `lib/groupQueries.ts` | Shared checked GET queries and group-data refresh after mutations |
+| `app/groups/[id]/layout.tsx`, `loading.tsx` | Persistent tracker navigation and route loading skeleton |
 | `lib/csvExport.ts` | Client-side CSV generation |
 | `lib/offlineQueue.ts` | localStorage offline expense queue |
-| `components/GroupNav.tsx` | Bottom nav for group pages |
+| `components/GroupNav.tsx` | Mobile bottom nav and desktop side nav |
 | `app/globals.css` | Shared responsive UI tokens, fields, actions, sheets, and focus styles |
 | `lib/format.ts` | INR and readable date formatting |
 | `lib/categoryIcons.ts` | Category icon choices and default mappings |
@@ -110,7 +121,7 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 | `components/AmountCalculator.tsx` | Bottom-sheet amount calculator using decimal-safe arithmetic |
 | `components/OnlineIndicator.tsx` | Green/red online status dot |
 | `vercel.json` | Daily Vercel Cron schedule |
-| `supabase/schema.sql` | Database schema |
+| `supabase/schema.sql` | Destructive fresh-database schema (drops tables) |
 | `supabase/migrations/20261014_add_category_icon.sql` | Safe icon-column migration for existing databases |
 | `PROJECT_REFERENCE.md` | Single source of truth for build phases |
 
@@ -144,13 +155,22 @@ CREATE TABLE categories (
   name text NOT NULL,
   icon text
 );
+
+-- Application events
+CREATE TABLE app_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  level text NOT NULL,
+  message text NOT NULL,
+  metadata jsonb,
+  created_at timestamptz DEFAULT now()
+);
 ```
 
 ## Setup
 
 1. Clone the repo
 2. `npm install`
-3. Copy `.env.local.example` to `.env.local` and fill in:
+3. Create `.env.local` with these values (there is no committed example file):
    ```
    NEXT_PUBLIC_SUPABASE_URL=
    NEXT_PUBLIC_SUPABASE_ANON_KEY=
@@ -160,10 +180,11 @@ CREATE TABLE categories (
    APP_PASSWORD=
    CRON_SECRET=
    ```
-4. Set the same `CRON_SECRET` in Vercel project environment variables
-5. Run `supabase/schema.sql` in Supabase SQL editor
-   - For an existing database, do not rerun `schema.sql` because it drops tables. Run `supabase/migrations/20261014_add_category_icon.sql` to add custom-category icons without deleting data.
+4. For a fresh database only, run `supabase/schema.sql` in the Supabase SQL Editor. **It drops existing tables and data.** For an existing database, run only `supabase/migrations/20261014_add_category_icon.sql` to add custom-category icons.
+5. Set the app environment variables in Vercel; configure `CRON_SECRET` there for the daily keepalive.
 6. `npm run dev`
+
+The current `NEXT_PUBLIC_SUPABASE_URL` should point to your hosted Supabase project. This repository does not configure a local Supabase stack. `/api/groups` requires a login session; a 401 response without the `app_session` cookie means the route exists. If authenticated requests fail with a TLS `ECONNRESET`, check local DNS/network resolution before changing the env file.
 
 ## Currency
 

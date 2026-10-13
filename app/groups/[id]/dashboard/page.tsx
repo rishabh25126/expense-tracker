@@ -4,11 +4,10 @@ import { useEffect, useState } from 'react';
 import { Cell } from 'recharts';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import GroupNav from '@/components/GroupNav';
 import { formatINR } from '@/lib/format';
 import FeedbackButton from '@/components/FeedbackButton';
-import type { Expense, Group } from '@/types';
 import { queryKeys } from '@/lib/queryKeys';
+import { groupOptions, expensesOptions } from '@/lib/groupQueries';
 import { CHART_COLORS, RECHARTS_THEME } from '@/lib/chartColors';
 
 const PieChart = dynamic(() => import('recharts').then(m => m.PieChart), { ssr: false });
@@ -36,15 +35,9 @@ export default function GroupDashboardPage() {
     setToday(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`);
   }, []);
 
-  const { data: group = null, isLoading: groupLoading } = useQuery({
-    queryKey: queryKeys.group(id),
-    queryFn: () => fetch(`/api/groups/${id}`).then(r => r.json()) as Promise<Group>,
-  });
+  const { data: group = null, isLoading: groupLoading } = useQuery(groupOptions(id));
 
-  const { data: expenses = [], isLoading: expensesLoading } = useQuery({
-    queryKey: queryKeys.expenses(id),
-    queryFn: () => fetch(`/api/groups/${id}/expenses`).then(r => r.json()) as Promise<Expense[]>,
-  });
+  const { data: expenses = [], isLoading: expensesLoading } = useQuery(expensesOptions(id));
 
   const {
     data: insightsData,
@@ -143,7 +136,7 @@ export default function GroupDashboardPage() {
           <div className="h-48 bg-gray-800 rounded animate-pulse" />
         </div>
       ) : (
-        <div className="grid min-w-0 gap-5 lg:grid-cols-2">
+        <div className="mb-5 grid min-w-0 gap-5 lg:grid-cols-2">
 
           {sortedCategories.length > 0 && (
             <section className="surface chart-panel p-5">
@@ -288,7 +281,6 @@ export default function GroupDashboardPage() {
       </section>
 
       <div className="hidden" />
-      <GroupNav groupId={id} />
     </div>
   );
 }

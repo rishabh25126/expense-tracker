@@ -1,7 +1,7 @@
 # AI Voice Expense Manager — Codex Instructions
 
 ## Project Context
-This is a voice-first expense tracking PWA built with Next.js 15, TypeScript (strict), Supabase, and Anthropic Codex API. Always read `PROJECT_REFERENCE.md` at the start of every session — it is the single source of truth for all build phases, features, and architecture decisions.
+This is a voice-first expense tracking PWA built with Next.js 15, strict TypeScript, Supabase, and the Anthropic Claude API. Always read `PROJECT_REFERENCE.md` at the start of every session — it is the source of truth for current architecture and build phases.
 
 ## Essential References
 - **PROJECT_REFERENCE.md** — build phases, tech stack, schema, file structure, feature specs
@@ -14,7 +14,7 @@ This is a voice-first expense tracking PWA built with Next.js 15, TypeScript (st
 - Do not include personal information (credentials, API keys, real names) in README.md or any committed file
 - Use minimum tokens / no over-engineering — this is a personal project
 - Currency is INR
-- AI model for runtime expense parsing: `Codex-haiku-4-5-20251001`
+- AI model for runtime expense parsing and insights: `claude-haiku-4-5-20251001`
 - Git commits: include `Co-Authored-By: Codex <noreply@anthropic.com>`
 
 ## Tech Stack
@@ -23,12 +23,14 @@ This is a voice-first expense tracking PWA built with Next.js 15, TypeScript (st
 - React Query for client-side data caching
 - `next-pwa` for PWA/offline support
 - Cookie auth (`app_session=1`, HttpOnly)
-- Anthropic Codex API for voice parsing + spending insights
+- Anthropic Claude API for voice parsing + spending insights
+- `motion` for UI transitions; `big.js` for calculator arithmetic
 
 ## Key Patterns
-- All API routes check `isAuthed()` from `lib/auth.ts`
+- App-facing API routes use `isAuthed()` from `lib/auth.ts`; the cron route uses `CRON_SECRET`. The legacy `/api/logs` POST route is an exception.
 - All DB access via `createAdminClient()` from `lib/supabase/admin.ts`
 - React Query keys defined in `lib/queryKeys.ts`
 - Expenses/categories scoped by `group_id` (no user_id — single user)
 - Period filtering is client-side (not in SQL queries)
 - Offline expenses queued in localStorage, auto-synced on reconnect
+- Default categories have dedicated icons. Custom category icons are stored in `categories.icon`; apply `supabase/migrations/20261014_add_category_icon.sql` on an existing database before using icon selection. Never rerun the destructive `supabase/schema.sql` on existing data.

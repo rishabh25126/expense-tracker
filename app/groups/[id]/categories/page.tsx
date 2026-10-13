@@ -2,9 +2,9 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import GroupNav from '@/components/GroupNav';
 import type { Category } from '@/types';
 import { queryKeys } from '@/lib/queryKeys';
+import { categoriesOptions } from '@/lib/groupQueries';
 import CategoryIcon from '@/components/CategoryIcon';
 import CategoryIconPicker from '@/components/CategoryIconPicker';
 import { iconForCategory, type CategoryIconId } from '@/lib/categoryIcons';
@@ -19,10 +19,7 @@ export default function GroupCategoriesPage() {
   const [editingIconId, setEditingIconId] = useState<string | null>(null);
   const [editingIcon, setEditingIcon] = useState<CategoryIconId | null>(null);
 
-  const { data: categories = [], isLoading, isError: categoriesError } = useQuery({
-    queryKey: queryKeys.categories(id),
-    queryFn: async () => { const res = await fetch(`/api/groups/${id}/categories`); if (!res.ok) throw new Error('Could not load categories'); return res.json() as Promise<Category[]>; },
-  });
+  const { data: categories = [], isLoading, isError: categoriesError } = useQuery(categoriesOptions(id));
 
   const createCategory = useMutation({
     mutationFn: async ({ name, icon }: { name: string; icon: CategoryIconId }) => {
@@ -148,7 +145,6 @@ export default function GroupCategoriesPage() {
       </form>
 
         <div className="hidden" />
-      <GroupNav groupId={id} />
     </div>
   );
 }

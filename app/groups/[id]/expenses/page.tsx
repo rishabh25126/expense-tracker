@@ -2,9 +2,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import GroupNav from '@/components/GroupNav';
-import type { Expense, Group, Category } from '@/types';
+import type { Expense, Category } from '@/types';
 import { queryKeys } from '@/lib/queryKeys';
+import { groupOptions, expensesOptions, categoriesOptions, refreshGroupData } from '@/lib/groupQueries';
 import { exportExpensesCSV } from '@/lib/csvExport';
 import { formatINR, formatDate } from '@/lib/format';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
@@ -30,20 +30,11 @@ export default function GroupExpensesPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [editing]);
 
-  const { data: group = null, isLoading: groupLoading } = useQuery({
-    queryKey: queryKeys.group(id),
-    queryFn: () => fetch(`/api/groups/${id}`).then(r => r.json()) as Promise<Group>,
-  });
+  const { data: group = null, isLoading: groupLoading } = useQuery(groupOptions(id));
 
-  const { data: expenses = [], isLoading: expensesLoading } = useQuery({
-    queryKey: queryKeys.expenses(id),
-    queryFn: () => fetch(`/api/groups/${id}/expenses`).then(r => r.json()) as Promise<Expense[]>,
-  });
+  const { data: expenses = [], isLoading: expensesLoading } = useQuery(expensesOptions(id));
 
-  const { data: customCats = [] } = useQuery({
-    queryKey: queryKeys.categories(id),
-    queryFn: () => fetch(`/api/groups/${id}/categories`).then(r => r.json()) as Promise<Category[]>,
-  });
+  const { data: customCats = [] } = useQuery(categoriesOptions(id));
 
   const allCategories = [...DEFAULT_CATS, ...(Array.isArray(customCats) ? customCats : []).map((c: Category) => c.name).filter(n => !DEFAULT_CATS.includes(n))];
   const periodStart = group?.period_start ?? '';
@@ -62,7 +53,7 @@ export default function GroupExpensesPage() {
   const deleteExpense = useMutation({
     mutationFn: async (eid: string) => { const res = await fetch(`/api/groups/${id}/expenses/${eid}`, { method: 'DELETE' }); if (!res.ok) throw new Error('Delete failed'); return res; },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
+      refreshGroupData(queryClient, id);
     },
   });
 
@@ -77,7 +68,7 @@ export default function GroupExpensesPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.expenses(id) });
+      refreshGroupData(queryClient, id);
     },
   });
 
@@ -202,7 +193,6 @@ export default function GroupExpensesPage() {
       )}</AnimatePresence>
 
         <div className="hidden" />
-      <GroupNav groupId={id} />
     </div>
   );
 }
