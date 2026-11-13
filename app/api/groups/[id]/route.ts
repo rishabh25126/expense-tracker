@@ -3,6 +3,29 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isAuthed, unauth } from '@/lib/auth';
 import { log } from '@/lib/logger';
 
+const INDIA_TIME_ZONE = 'Asia/Kolkata';
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function todayInIndia() {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: INDIA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function isValidISODate(value: unknown): value is string {
+  if (typeof value !== 'string' || !ISO_DATE.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+}
+
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!await isAuthed()) return unauth();
   try {
@@ -17,27 +40,39 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   }
 }
 
-// PATCH action=start_period: saves current period_start as prev, sets period_start=today
+// PATCH action=start_period: saves current period_start as prev, sets the selected period start
 // PATCH action=undo_period: restores prev_period_start
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!await isAuthed()) return unauth();
   try {
     const { id } = await params;
-    const body = await req.json() as { action: string; name?: string };
-    const { action, name } = body;
+    const body = await req.json() as { action: string; name?: string; periodStart?: unknown };
+    const { action, name, periodStart } = body;
     const supabase = createAdminClient();
 
     if (action === 'start_period') {
-      const { data: current } = await supabase.from('groups').select('period_start').eq('id', id).single();
-      const today = new Date().toISOString().split('T')[0];
+      if (!isValidISODate(periodStart)) {
+        return NextResponse.json({ error: 'Choose a valid period start date.' }, { status: 400 });
+      }
+      if (periodStart > todayInIndia()) {
+        return NextResponse.json({ error: 'New period cannot start in the future.' }, { status: 400 });
+      }
+      const { data: current, error: currentError } = await supabase.from('groups').select('period_start').eq('id', id).single();
+      if (currentError || !current) {
+        await log('ERROR', 'start_period group fetch failed', { id, error: currentError?.message });
+        return NextResponse.json({ error: 'Tracker not found.' }, { status: 404 });
+      }
+      if (periodStart <= current.period_start) {
+        return NextResponse.json({ error: 'New period must start after the current period.' }, { status: 400 });
+      }
       const { data, error } = await supabase
         .from('groups')
-        .update({ prev_period_start: current?.period_start, period_start: today })
+        .update({ prev_period_start: current.period_start, period_start: periodStart })
         .eq('id', id)
         .select()
         .single();
       if (error) { await log('ERROR', 'start_period failed', { id, error: error.message }); return NextResponse.json({ error: error.message }, { status: 500 }); }
-      await log('INFO', 'New period started', { id, prev: current?.period_start, new: today });
+      await log('INFO', 'New period started', { id, prev: current.period_start, new: periodStart });
       return NextResponse.json(data);
     }
 

@@ -23,9 +23,9 @@ A voice-first expense tracking PWA. Speak an expense, AI parses it, it gets save
 - Voice expense entry with AI parsing (amount, category, date, description)
 - Manual expense form with category selection and an amount-field calculator
 - Multi-group trackers (fully isolated expenses, categories per group)
-- Custom period system (not calendar-based) with undo support
+- Custom period system with a backdated start-date picker and one-level undo support
 - Dashboard with today/period totals, category breakdown, AI spending insights
-- Stats page with a 12-month trend chart, current-period category bars, and period controls
+- Stats page with a 12-month trend chart, current-period category bars, and responsive period settings
 - Category management (defaults + custom per group, with a selectable icon for each custom category)
 - CSV export (exports filtered view from Expenses page)
 - Offline support: online/offline indicator, voice disabled when offline, offline expense queue with auto-sync
@@ -53,6 +53,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 - Each voice recording owns a fresh native recognition instance. A final result waits for natural `onend` without calling `stop()` again; manual Stop calls `stop()` and waits for `onend`. Cancel, offline, disable, page hide, and unmount abort the instance. A five-second startup watchdog and two-second missing-`onend` fallback unlock stalled sessions for retry. The component logs each native lifecycle event and timeout with a session ID, sequence number, and elapsed time; these new diagnostics omit spoken text. `lib/voiceTelemetry.ts` keeps up to 200 unsent events in localStorage and retries failed storage writes.
 - Expenses and categories scoped by `group_id` (no `user_id` column — single-user)
 - Period filtering is client-side: `expenses.filter(e => e.date >= periodStart)`
+- Starting a period accepts a selected `YYYY-MM-DD` date after the current start and no later than today in `Asia/Kolkata`. Expense rows are not changed; their dates automatically place them in the new current or previous period.
 - Custom category icons are stored on the category row. Existing rows without an icon display initials until edited.
 
 ### Offline Queue
@@ -83,7 +84,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 | `/groups/[id]/add` | Voice + manual expense entry |
 | `/groups/[id]/expenses` | List with period/category filter + CSV export |
 | `/groups/[id]/dashboard` | Today/period totals + category breakdown + AI insights |
-| `/groups/[id]/stats` | Monthly trend + category bars + period controls |
+| `/groups/[id]/stats` | Monthly trend + category bars + backdated period settings |
 | `/groups/[id]/categories` | Manage custom categories and their icons |
 | `/logs` | Internal application logs and filters |
 
@@ -93,7 +94,7 @@ Mobile Add Expense preview (synthetic QA data): [mobile-add-final.png](docs/ui/m
 |-------|---------|---------|
 | `/api/auth` | POST, DELETE | Login / logout |
 | `/api/groups` | GET, POST | List / create groups |
-| `/api/groups/[id]` | GET, PATCH, DELETE | Get / update period / delete group |
+| `/api/groups/[id]` | GET, PATCH, DELETE | Get tracker; rename, start/undo period; delete tracker |
 | `/api/groups/[id]/expenses` | GET, POST | List / create expenses |
 | `/api/groups/[id]/expenses/[eid]` | PATCH, DELETE | Update / delete expense |
 | `/api/groups/[id]/categories` | GET, POST | List / create categories |
