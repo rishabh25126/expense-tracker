@@ -1,6 +1,6 @@
 # AI Voice Expense Manager — Build Reference
 
-> Current architecture and phase history for the app. Early phases record the original build; Phase 8 replaced user-scoped Supabase Auth with the current single-user, tracker-scoped model. Later phases can supersede older implementation details; Phase 27 defines the current voice lifecycle.
+> Current architecture and phase history for the app. Early phases record the original build; Phase 8 replaced user-scoped Supabase Auth with the current single-user, tracker-scoped model. Later phases can supersede older implementation details; Phase 27 defines the current voice lifecycle and Phase 28 defines the current period controls.
 
 ---
 
@@ -288,6 +288,15 @@ The server accesses Supabase with the service-role key. `supabase/schema.sql` di
 - [x] Queue up to 200 unsent events in localStorage and retry failed writes; `/api/logs` is authenticated and reports database insert failure instead of false success
 - [ ] Reproduce the second-attempt failure on a physical iPhone after deployment and compare both sessions on `/logs`; simulated browser tests cannot verify WebKit microphone capture
 
+### Phase 28 — Backdated Period Start Picker ✅ COMPLETED
+- [x] Replace the immediate period-reset buttons with a responsive Period Settings card on Stats
+- [x] Let the user choose a new period start after the current start and no later than today in `Asia/Kolkata`
+- [x] Validate the selected `YYYY-MM-DD` date in `/api/groups/[id]` and return actionable errors
+- [x] Keep period membership date-based so backdated starts reclassify views without updating expense rows
+- [x] Preserve one-level period undo and refresh tracker, expense, insight, and digest caches after changes
+- [x] Apply the Supabase-inspired design reference and Web Interface Guidelines workflow for UI changes
+- [x] No database schema or migration change is required
+
 ---
 
 ## Environment Variables Required
@@ -474,3 +483,4 @@ type Category = {
 25. Native voice lifecycle and mobile icon controls
 26. Repeat voice sessions, stalled-start recovery, and selected Voice app icon
 27. iPhone voice lifecycle diagnostics and physical-device follow-up
+28. Backdated period start picker and responsive period settings

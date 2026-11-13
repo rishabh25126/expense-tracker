@@ -7,6 +7,12 @@ This is a voice-first expense tracking PWA built with Next.js 15, strict TypeScr
 - **PROJECT_REFERENCE.md** — build phases, tech stack, schema, file structure, feature specs
 - **README.md** — project overview, architecture, routing, API routes, setup. Keep updated with any changes to features, routes, or architecture.
 
+## UI Design Workflow
+- At the start of every UI/UX feature or review, read and apply both `awesome-design-md` and `web-design-guidelines`.
+- Use `awesome-design-md` before implementation to select the closest current design reference, then adapt it to the established app design system without copying brand assets.
+- Preserve the app's existing navigation, dark emerald visual language, responsive behavior, and component patterns unless the task explicitly requires a redesign.
+- Before considering UI work complete, run `web-design-guidelines` against every changed UI file and resolve its findings.
+
 ## Rules
 - Always read `PROJECT_REFERENCE.md` before making changes
 - After completing any feature/phase, update `PROJECT_REFERENCE.md` (mark completed, add new files to structure, update build order)
